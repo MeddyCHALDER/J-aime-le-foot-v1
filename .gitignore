@@ -20,3 +20,6 @@ backend/src/uploads/*
 .idea/
 .vscode/
 public/build-id.json
+
+.vercel
+.env.local
