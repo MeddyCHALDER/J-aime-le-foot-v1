@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text, Button, TextInput, SegmentedButtons, HelperText } from 'react-native-paper';
-import { Screen, LoadingState, ErrorState, FutCard } from '../../../ui';
+import { Screen, LoadingState, ErrorState } from '../../../ui';
 import { useProfile, useUpdateProfile } from '../hooks';
 import { useAuth } from '../../auth/hooks';
 import { pickMediaFile } from '../../media/api';
 import { useUploadMedia } from '../../media/hooks';
-import { toErrorMessage } from '../../../lib/errors';
+import { FifaCard } from '../../cards/FifaCard';
+import { usePlayerCard } from '../../cards/hooks';
 
 interface PlayerProfileScreenProps {
   playerId: string;
@@ -19,6 +20,7 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
   const { data: profile, isLoading, error, refetch } = useProfile(playerId);
   const updateProfile = useUpdateProfile();
   const uploadMedia = useUploadMedia();
+  const { data: fifaCard } = usePlayerCard(playerId, profile?.preferred_position);
 
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
@@ -38,7 +40,7 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
   }, [profile]);
 
   if (isLoading) return <LoadingState message="Chargement du profil…" />;
-  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
   if (!profile) return null;
 
   const save = async () => {
@@ -89,11 +91,14 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
       subtitle={isOwn ? 'Visible par les potes de tes ligues' : profile.preferred_position ?? undefined}
     >
       <View style={styles.content}>
-        <FutCard
-          playerName={editing ? displayName || profile.display_name : profile.display_name}
-          rating={50}
+        <FifaCard
+          displayName={editing ? displayName || profile.display_name : profile.display_name}
           position={editing ? position || profile.preferred_position : profile.preferred_position}
           avatarUrl={avatarUrl}
+          strongFoot={editing ? foot : profile.strong_foot}
+          card={fifaCard ?? null}
+          size="big"
+          style={styles.fifa}
         />
 
         {isOwn ? (
@@ -203,10 +208,11 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: 8 },
-  bio: { marginTop: 12, marginBottom: 8 },
-  meta: { opacity: 0.8, marginBottom: 16 },
-  button: { marginTop: 8 },
-  input: { marginBottom: 12 },
-  label: { marginBottom: 8 },
+  content: { paddingTop: 8, alignItems: 'center' },
+  fifa: { marginBottom: 16 },
+  bio: { marginTop: 12, marginBottom: 8, alignSelf: 'stretch' },
+  meta: { opacity: 0.8, marginBottom: 16, alignSelf: 'stretch' },
+  button: { marginTop: 8, alignSelf: 'stretch' },
+  input: { marginBottom: 12, alignSelf: 'stretch' },
+  label: { marginBottom: 8, alignSelf: 'stretch' },
 });

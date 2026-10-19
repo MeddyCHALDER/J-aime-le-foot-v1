@@ -21,11 +21,10 @@ import {
   ErrorState,
   FutCard,
 } from '../../../ui';
+import { AwardsVoteTab } from '../../awards/components/AwardsVoteTab';
 import type { PlayerStandingRow, PlayerStats as PlayerStatsType } from '../../../types/entities';
-import { brand } from '../../../theme/brand';
-import { toErrorMessage } from '../../../lib/errors';
 
-type TabValue = 'matches' | 'rankings' | 'players';
+type TabValue = 'matches' | 'rankings' | 'awards' | 'players';
 
 interface LeagueDetailScreenProps {
   leagueId: string;
@@ -80,7 +79,7 @@ function PlayersTab({
   };
 
   if (isLoading) return <LoadingState message="Chargement des joueurs…" />;
-  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
 
   return (
     <FlatList
@@ -116,6 +115,7 @@ function PlayersTab({
               loading={sendInvite.isPending}
               disabled={sendInvite.isPending}
               style={styles.inviteBtn}
+              labelStyle={{ color: '#000' }}
             >
               Envoyer l’invitation par email
             </Button>
@@ -179,7 +179,7 @@ function MatchesTab({
       />
     );
   if (isLoading) return <LoadingState message="Chargement des matchs…" />;
-  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
 
   const getTeamNames = (matchId: string) => {
     const home = matchTeams.find((t) => t.match_id === matchId && t.side === 'home');
@@ -231,7 +231,7 @@ function MatchesTab({
           label="Match"
           style={[styles.fab, { backgroundColor: theme.colors.primary }]}
           onPress={() => onCreateMatch(seasonId)}
-          color={theme.colors.onPrimary}
+          color="#000"
         />
       ) : null}
     </>
@@ -362,7 +362,7 @@ export function LeagueDetailScreen({
   const { data: seasons = [] } = useSeasonsByLeague(leagueId);
 
   if (isLoading) return <LoadingState message="Chargement de la ligue…" />;
-  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
   if (!league) return null;
 
   const isAdmin = user?.id === league.created_by;
@@ -387,7 +387,8 @@ export function LeagueDetailScreen({
         onValueChange={(v) => setTab(v as TabValue)}
         buttons={[
           { value: 'matches', label: 'Matchs' },
-          { value: 'rankings', label: 'Classement' },
+          { value: 'rankings', label: 'Class.' },
+          { value: 'awards', label: 'Votes' },
           { value: 'players', label: 'Joueurs' },
         ]}
         style={styles.tabs}
@@ -402,6 +403,11 @@ export function LeagueDetailScreen({
         />
       )}
       {tab === 'rankings' && <RankingsTab leagueId={leagueId} onPlayerPress={onPlayerPress} />}
+      {tab === 'awards' && seasons[0]?.id ? (
+        <AwardsVoteTab seasonId={seasons[0].id} leagueId={leagueId} isAdmin={isAdmin} />
+      ) : tab === 'awards' ? (
+        <EmptyState title="Pas de saison" message="Crée une saison pour ouvrir les votes." />
+      ) : null}
       {tab === 'players' && (
         <PlayersTab
           leagueId={leagueId}
@@ -422,16 +428,16 @@ const styles = StyleSheet.create({
   inviteBox: {
     marginBottom: 20,
     padding: 16,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: brand.lime,
-    backgroundColor: brand.infoBg,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#C9FF00',
+    backgroundColor: '#f7ffe0',
   },
-  inviteCode: { marginTop: 8, letterSpacing: 4, color: brand.lime },
+  inviteCode: { marginTop: 8, letterSpacing: 4, fontWeight: '700' },
   inviteHint: { marginTop: 4, opacity: 0.75 },
   inviteBtn: { marginTop: 12 },
   inviteInput: { marginTop: 12 },
-  inviteOk: { marginTop: 8, color: brand.infoText },
-  inviteError: { marginTop: 8, color: brand.errorText },
+  inviteOk: { marginTop: 8, color: '#1a472a' },
+  inviteError: { marginTop: 8, color: '#b00020' },
 });
 

@@ -19,11 +19,11 @@ import {
   useCreateMatchEvent,
 } from '../hooks';
 import { useAuth } from '../../auth/hooks';
+import { useApplyMatchSheet } from '../../cards/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import { Screen, LoadingState, ErrorState, SectionHeader } from '../../../ui';
 import type { MatchEventType } from '../../../types/entities';
-import { toErrorMessage } from '../../../lib/errors';
 
 const EVENT_LABELS: Record<MatchEventType, string> = {
   goal: 'But',
@@ -45,6 +45,8 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
   const { data: events = [] } = useMatchEvents(matchId);
   const updateMatch = useUpdateMatch();
   const createEvent = useCreateMatchEvent();
+  const applySheet = useApplyMatchSheet();
+  const [sheetMsg, setSheetMsg] = useState<string | null>(null);
 
   const homeTeam = matchTeams.find((t) => t.side === 'home');
   const awayTeam = matchTeams.find((t) => t.side === 'away');
@@ -93,7 +95,7 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
   }, [playersForSide, eventPlayerId]);
 
   if (isLoading) return <LoadingState message="Chargement du match…" />;
-  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
   if (!match) return null;
 
   const date = new Date(match.kickoff_at);
@@ -107,6 +109,7 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
   const videoUrl = match.replay_url ?? match.stream_url ?? null;
 
   const saveScore = async () => {
+    setSheetMsg(null);
     await updateMatch.mutateAsync({
       id: match.id,
       updates: {
@@ -115,6 +118,16 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
         status: 'played',
       },
     });
+    try {
+      await applySheet.mutateAsync(match.id);
+      setSheetMsg('Feuille validée — les cartes FIFA ont été mises à jour.');
+    } catch (e) {
+      setSheetMsg(
+        e instanceof Error
+          ? `Score OK, cartes non mises à jour (${e.message}). Exécute la migration 004.`
+          : 'Score OK, cartes non mises à jour.'
+      );
+    }
     refetch();
   };
 
@@ -205,13 +218,18 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
           <Button
             mode="contained"
             onPress={saveScore}
-            loading={updateMatch.isPending}
+            loading={updateMatch.isPending || applySheet.isPending}
             style={styles.watch}
           >
-            Valider le résultat
+            Valider feuille de match
           </Button>
+          {sheetMsg ? (
+            <Text variant="bodySmall" style={{ marginBottom: 12, opacity: 0.85 }}>
+              {sheetMsg}
+            </Text>
+          ) : null}
 
-          <SectionHeader title="Admin · Ajouter un événement" />
+          <SectionHeader title="Admin · Feuille · Événements" />
           <SegmentedButtons
             value={eventSide}
             onValueChange={(v) => {
