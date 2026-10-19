@@ -21,12 +21,14 @@ export async function signOut() {
   if (error) throw error;
 }
 
-/** Envoie l’email de réinitialisation (lien → APP_URL). */
+/** Envoie l’email de réinitialisation brandé via Edge Function + Resend. */
 export async function requestPasswordReset(email: string) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-    redirectTo: `${getAppUrl()}/`,
+  const { data, error } = await supabase.functions.invoke('send-password-reset', {
+    body: { email: email.trim().toLowerCase() },
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Envoi impossible');
+  if (data?.error) throw new Error(String(data.error));
+  return data as { ok: boolean; id?: string };
 }
 
 /** Définit le nouveau mot de passe après clic sur le lien de recovery. */

@@ -8,3 +8,7 @@ verify_jwt = true
 
 [functions.media-upload-url]
 verify_jwt = true
+
+# Public : pas besoin d’être connecté pour demander un reset
+[functions.send-password-reset]
+verify_jwt = false
