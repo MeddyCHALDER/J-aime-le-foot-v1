@@ -33,7 +33,7 @@ function NavigationRoot() {
 
   return (
     <AppShell>
-      <NavigationContainer theme={navigationTheme}>
+      <NavigationContainer theme={navigationTheme} style={{ flex: 1 }}>
         <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
         <RootNavigator />
       </NavigationContainer>

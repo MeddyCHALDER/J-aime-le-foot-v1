@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     flexShrink: 0,
+    width: '100%',
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   item: {

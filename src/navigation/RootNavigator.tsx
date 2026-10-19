@@ -24,7 +24,9 @@ const AppStack = createNativeStackNavigator<AppStackParamList>();
 
 function AuthNavigator() {
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Navigator
+      screenOptions={{ headerShown: false, contentStyle: { flex: 1, backgroundColor: brand.ink } }}
+    >
       <AuthStack.Screen name="Login">
         {(props) => (
           <LoginScreen
@@ -69,6 +71,7 @@ function AppNavigator({ userId }: { userId: string }) {
         headerTintColor: brand.lime,
         headerStyle: { backgroundColor: brand.ink },
         headerTitleStyle: { fontWeight: '600' },
+        contentStyle: { flex: 1, backgroundColor: brand.ink },
       }}
     >
       <AppStack.Screen name="Main" options={{ headerShown: false }}>
