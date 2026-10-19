@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts } from '../../theme/brand';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { LoadingState, ErrorState, EmptyState } from '../../ui';
+import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
 import type { Match } from '../../types/entities';
 
@@ -53,7 +54,7 @@ export function MatchesTabScreen({
   );
 
   if (isLoading) return <LoadingState message="Chargement des matchs…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
 
   if (!league) {
     return (

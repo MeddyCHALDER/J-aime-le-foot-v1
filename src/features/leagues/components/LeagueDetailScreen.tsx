@@ -22,6 +22,7 @@ import {
   FutCard,
 } from '../../../ui';
 import { AwardsVoteTab } from '../../awards/components/AwardsVoteTab';
+import { toErrorMessage } from '../../../lib/errors';
 import type { PlayerStandingRow, PlayerStats as PlayerStatsType } from '../../../types/entities';
 
 type TabValue = 'matches' | 'rankings' | 'awards' | 'players';
@@ -79,7 +80,7 @@ function PlayersTab({
   };
 
   if (isLoading) return <LoadingState message="Chargement des joueurs…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
 
   return (
     <FlatList
@@ -179,7 +180,7 @@ function MatchesTab({
       />
     );
   if (isLoading) return <LoadingState message="Chargement des matchs…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
 
   const getTeamNames = (matchId: string) => {
     const home = matchTeams.find((t) => t.match_id === matchId && t.side === 'home');
@@ -362,7 +363,7 @@ export function LeagueDetailScreen({
   const { data: seasons = [] } = useSeasonsByLeague(leagueId);
 
   if (isLoading) return <LoadingState message="Chargement de la ligue…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
   if (!league) return null;
 
   const isAdmin = user?.id === league.created_by;

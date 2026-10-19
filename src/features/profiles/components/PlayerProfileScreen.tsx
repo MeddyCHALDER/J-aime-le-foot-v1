@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text, Button, TextInput, SegmentedButtons, HelperText } from 'react-native-paper';
 import { Screen, LoadingState, ErrorState } from '../../../ui';
+import { toErrorMessage } from '../../../lib/errors';
 import { useProfile, useUpdateProfile } from '../hooks';
 import { useAuth } from '../../auth/hooks';
 import { pickMediaFile } from '../../media/api';
@@ -40,7 +41,7 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
   }, [profile]);
 
   if (isLoading) return <LoadingState message="Chargement du profil…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
   if (!profile) return null;
 
   const save = async () => {

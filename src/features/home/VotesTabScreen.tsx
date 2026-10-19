@@ -6,6 +6,7 @@ import { useAppTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../auth/hooks';
 import { AwardsVoteTab } from '../awards/components/AwardsVoteTab';
 import { EmptyState, LoadingState, ErrorState } from '../../ui';
+import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
 
 export function VotesTabScreen() {
@@ -17,7 +18,7 @@ export function VotesTabScreen() {
   const isAdmin = !!user?.id && !!league && user.id === league.created_by;
 
   if (isLoading) return <LoadingState message="Chargement des votes…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
 
   if (!league || !season) {
     return (

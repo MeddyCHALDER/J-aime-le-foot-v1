@@ -8,10 +8,35 @@ function makeInviteCode() {
   return code;
 }
 
+function normalizeLeague(row: Record<string, unknown>): League {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    city: (row.city as string | null) ?? (row.description as string | null) ?? null,
+    created_by: String(row.created_by ?? row.manager_id ?? ''),
+    invite_code: (row.invite_code as string | null) ?? null,
+    created_at: String(row.created_at ?? ''),
+    updated_at: row.updated_at ? String(row.updated_at) : undefined,
+  };
+}
+
+function normalizeSeason(row: Record<string, unknown>): Season {
+  return {
+    id: String(row.id),
+    league_id: String(row.league_id),
+    name: String(row.name),
+    is_active: Boolean(row.is_active ?? true),
+    start_date: (row.start_date as string | null) ?? null,
+    end_date: (row.end_date as string | null) ?? null,
+    created_at: String(row.created_at ?? ''),
+    updated_at: row.updated_at ? String(row.updated_at) : undefined,
+  };
+}
+
 export async function fetchLeagues(): Promise<League[]> {
   const { data, error } = await supabase.from('leagues').select('*').order('name');
   if (error) throw error;
-  return (data ?? []) as League[];
+  return (data ?? []).map((r) => normalizeLeague(r as Record<string, unknown>));
 }
 
 export async function fetchLeagueById(id: string): Promise<League | null> {
@@ -20,7 +45,7 @@ export async function fetchLeagueById(id: string): Promise<League | null> {
     if (error.code === 'PGRST116') return null;
     throw error;
   }
-  return data as League;
+  return normalizeLeague(data as Record<string, unknown>);
 }
 
 export async function fetchSeasonsByLeague(leagueId: string): Promise<Season[]> {
@@ -30,15 +55,14 @@ export async function fetchSeasonsByLeague(leagueId: string): Promise<Season[]> 
     .eq('league_id', leagueId)
     .order('start_date', { ascending: false });
   if (error) throw error;
-  return (data ?? []) as Season[];
+  return (data ?? []).map((r) => normalizeSeason(r as Record<string, unknown>));
 }
 
 export async function createLeague(name: string, createdBy: string, city?: string): Promise<League> {
   const invite_code = makeInviteCode();
 
-  // Schéma V1 (created_by + city) ou legacy (manager_id + description)
   let league: League | null = null;
-  let leagueError: { message?: string; code?: string } | null = null;
+  let leagueError: { message?: string } | null = null;
 
   {
     const res = await supabase
@@ -46,7 +70,7 @@ export async function createLeague(name: string, createdBy: string, city?: strin
       .insert({ name, created_by: createdBy, city: city ?? null, invite_code })
       .select()
       .single();
-    league = res.data as League | null;
+    if (res.data) league = normalizeLeague(res.data as Record<string, unknown>);
     leagueError = res.error;
   }
 
@@ -62,29 +86,37 @@ export async function createLeague(name: string, createdBy: string, city?: strin
       .select()
       .single();
     if (res.error) throw res.error;
-    league = {
+    league = normalizeLeague({
       ...(res.data as object),
       created_by: createdBy,
       city: city ?? null,
-    } as League;
+    } as Record<string, unknown>);
   }
 
   if (!league) throw new Error('Création de ligue impossible');
 
-  // league_members n'existe que sur le schéma V1
   await supabase.from('league_members').insert({
     league_id: league.id,
     player_id: createdBy,
     role: 'admin',
   });
 
-  await supabase.from('seasons').insert({
-    league_id: league.id,
-    name: new Date().getFullYear().toString(),
-    is_active: true,
-  });
+  // Saison : avec ou sans is_active selon le schéma
+  {
+    const withActive = await supabase.from('seasons').insert({
+      league_id: league.id,
+      name: new Date().getFullYear().toString(),
+      is_active: true,
+    });
+    if (withActive.error) {
+      await supabase.from('seasons').insert({
+        league_id: league.id,
+        name: new Date().getFullYear().toString(),
+      });
+    }
+  }
 
-  return { ...league, created_by: league.created_by ?? createdBy } as League;
+  return league;
 }
 
 export async function joinLeagueByCode(code: string): Promise<string> {
@@ -101,7 +133,7 @@ export async function createSeason(
   startDate?: string,
   endDate?: string
 ): Promise<Season> {
-  const { data, error } = await supabase
+  const withActive = await supabase
     .from('seasons')
     .insert({
       league_id: leagueId,
@@ -112,6 +144,21 @@ export async function createSeason(
     })
     .select()
     .single();
-  if (error) throw error;
-  return data as Season;
+
+  if (!withActive.error && withActive.data) {
+    return normalizeSeason(withActive.data as Record<string, unknown>);
+  }
+
+  const res = await supabase
+    .from('seasons')
+    .insert({
+      league_id: leagueId,
+      name,
+      start_date: startDate ?? null,
+      end_date: endDate ?? null,
+    })
+    .select()
+    .single();
+  if (res.error) throw res.error;
+  return normalizeSeason(res.data as Record<string, unknown>);
 }

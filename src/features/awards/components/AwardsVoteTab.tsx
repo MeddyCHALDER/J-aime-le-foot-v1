@@ -12,6 +12,7 @@ import {
 } from '../seasonAwardsHooks';
 import { AWARD_CATALOG } from '../seasonAwardsApi';
 import { EmptyState, ErrorState, LoadingState, SectionHeader } from '../../../ui';
+import { toErrorMessage } from '../../../lib/errors';
 
 interface AwardsVoteTabProps {
   seasonId: string;
@@ -40,7 +41,7 @@ export function AwardsVoteTab({ seasonId, leagueId, isAdmin }: AwardsVoteTabProp
   };
 
   if (isLoading) return <LoadingState message="Chargement des trophées…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
 
   if (awards.length === 0) {
     return (

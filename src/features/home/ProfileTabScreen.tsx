@@ -9,6 +9,7 @@ import { useProfile } from '../profiles/hooks';
 import { usePlayerCard } from '../cards/hooks';
 import { FifaCard } from '../cards/FifaCard';
 import { LoadingState, ErrorState } from '../../ui';
+import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
 
 interface ProfileTabScreenProps {
@@ -30,7 +31,7 @@ export function ProfileTabScreen({
   const { league } = useHomeContext();
 
   if (isLoading) return <LoadingState message="Chargement du profil…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
   if (!profile) return null;
 
   return (
