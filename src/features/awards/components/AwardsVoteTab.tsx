@@ -30,10 +30,12 @@ export function AwardsVoteTab({ seasonId, leagueId, isAdmin }: AwardsVoteTabProp
   const selected = awards.find((a) => a.id === selectedAwardId) ?? awards[0] ?? null;
 
   const openAll = async () => {
-    await openAwards.mutateAsync({
-      seasonId,
-      playerIds: members.map((m) => m.player_id),
-    });
+    let playerIds = members.map((m) => m.player_id);
+    if (playerIds.length === 0 && user?.id) {
+      // Fallback si pas encore de league_members (schéma legacy)
+      playerIds = [user.id];
+    }
+    await openAwards.mutateAsync({ seasonId, playerIds });
     refetch();
   };
 
