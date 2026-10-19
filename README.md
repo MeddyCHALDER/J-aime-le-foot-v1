@@ -10,6 +10,7 @@
 - **State** : TanStack Query
 - **Backend** : Supabase (Auth + Postgres + RLS)
 - **Emails** : [Resend](https://resend.com) (invitations via Edge Function)
+- **Médias** : [Cloudflare R2](https://www.cloudflare.com/developer-platform/r2/) (photos / vidéos via URL présignée)
 - **PWA** : `public/manifest.json` + service worker + icônes
 
 ## Prérequis
@@ -63,6 +64,49 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=votre_anon_key
 Pour les mails de confirmation / reset password via Resend :  
 [Intégration Resend ↔ Supabase](https://resend.com/docs/knowledge-base/getting-started-with-resend-and-supabase) (SMTP custom dans Auth).
 
+## Médias avec Cloudflare R2
+
+Photos de profil (et bientôt vidéos) : upload direct navigateur → R2 via URL présignée.
+
+### Setup Cloudflare
+
+1. Crée un bucket R2 (ex. `jaimelefoot-media`).
+2. **R2 → Manage R2 API Tokens** → Create API token (Object Read & Write sur ce bucket).
+3. Active l’accès public :
+   - soit **R2.dev subdomain** (ex. `https://pub-….r2.dev`),
+   - soit un **domaine custom** (ex. `https://media.jaimelefoot.app`).
+4. Note : Account ID, Access Key ID, Secret Access Key, nom du bucket, URL publique.
+5. **CORS du bucket** (Settings → CORS policy) — obligatoire pour l’upload depuis le navigateur :
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://www.jaimelefoot.app", "http://localhost:8081"],
+       "AllowedMethods": ["GET", "PUT", "HEAD"],
+       "AllowedHeaders": ["*"],
+       "ExposeHeaders": ["ETag"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+### Secrets Supabase + déploiement
+
+```bash
+npx supabase secrets set \
+  R2_ACCOUNT_ID=xxx \
+  R2_ACCESS_KEY_ID=xxx \
+  R2_SECRET_ACCESS_KEY=xxx \
+  R2_BUCKET=jaimelefoot-media \
+  R2_PUBLIC_URL=https://media.jaimelefoot.app \
+  --project-ref bavfngaiqwjhufdasjcr
+
+npx supabase functions deploy media-upload-url --project-ref bavfngaiqwjhufdasjcr
+```
+
+Chemins objets : `avatars/{userId}/…`, `images/{userId}/…`, `videos/{userId}/…`.
+
+Dans l’app : **Mon profil → Changer la photo**.
+
 ## Lancement (web)
 
 ```bash
@@ -86,7 +130,15 @@ npm run build:web   # génère le dossier dist/
 npm run serve:web   # test local de la build
 ```
 
-Déploie le contenu de `dist/` sur Vercel, Netlify, Cloudflare Pages, ou tout hébergeur static. Les fichiers de `public/` (manifest, icônes, SW) sont inclus.
+### Vercel
+
+Le fichier `vercel.json` lance `expo export --platform web` et publie le dossier `dist/` (pas le dossier `public/` brut).
+
+Dans **Vercel → Project → Settings → Environment Variables**, ajoute (Production) :
+- `EXPO_PUBLIC_SUPABASE_URL` = `https://bavfngaiqwjhufdasjcr.supabase.co`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY` = ta clé anon (même valeur que dans `.env`)
+
+Sans ces variables, le JS plante au chargement → page blanche.
 
 ## Fonctionnalités V1
 
