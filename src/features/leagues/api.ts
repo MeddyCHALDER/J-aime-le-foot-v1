@@ -35,28 +35,56 @@ export async function fetchSeasonsByLeague(leagueId: string): Promise<Season[]> 
 
 export async function createLeague(name: string, createdBy: string, city?: string): Promise<League> {
   const invite_code = makeInviteCode();
-  const { data: league, error: leagueError } = await supabase
-    .from('leagues')
-    .insert({ name, created_by: createdBy, city: city ?? null, invite_code })
-    .select()
-    .single();
-  if (leagueError) throw leagueError;
 
-  const { error: memberError } = await supabase.from('league_members').insert({
+  // Schéma V1 (created_by + city) ou legacy (manager_id + description)
+  let league: League | null = null;
+  let leagueError: { message?: string; code?: string } | null = null;
+
+  {
+    const res = await supabase
+      .from('leagues')
+      .insert({ name, created_by: createdBy, city: city ?? null, invite_code })
+      .select()
+      .single();
+    league = res.data as League | null;
+    leagueError = res.error;
+  }
+
+  if (leagueError) {
+    const res = await supabase
+      .from('leagues')
+      .insert({
+        name,
+        manager_id: createdBy,
+        description: city ?? null,
+        invite_code,
+      })
+      .select()
+      .single();
+    if (res.error) throw res.error;
+    league = {
+      ...(res.data as object),
+      created_by: createdBy,
+      city: city ?? null,
+    } as League;
+  }
+
+  if (!league) throw new Error('Création de ligue impossible');
+
+  // league_members n'existe que sur le schéma V1
+  await supabase.from('league_members').insert({
     league_id: league.id,
     player_id: createdBy,
     role: 'admin',
   });
-  if (memberError) throw memberError;
 
-  // Saison par défaut pour un parcours admin fluide
   await supabase.from('seasons').insert({
     league_id: league.id,
     name: new Date().getFullYear().toString(),
     is_active: true,
   });
 
-  return league as League;
+  return { ...league, created_by: league.created_by ?? createdBy } as League;
 }
 
 export async function joinLeagueByCode(code: string): Promise<string> {

@@ -1,4 +1,4 @@
-import { getAppUrl, supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 export async function signUp(email: string, password: string, displayName?: string) {
   const { data, error } = await supabase.auth.signUp({
@@ -13,6 +13,9 @@ export async function signUp(email: string, password: string, displayName?: stri
 export async function signIn(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
+  if (!data.session) {
+    throw new Error('Connexion OK mais session absente. Vérifie les cookies / le stockage navigateur.');
+  }
   return { user: data.user, session: data.session };
 }
 

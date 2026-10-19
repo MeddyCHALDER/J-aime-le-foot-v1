@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from 'react-native-paper';
-import type { RootStackParamList } from './types';
+import type { AppStackParamList, AuthStackParamList } from './types';
 import { useAuth } from '../features/auth/hooks';
 import { signIn, signUp, signOut } from '../features/auth/api';
 import { LoginScreen } from '../features/auth/LoginScreen';
@@ -18,36 +18,15 @@ import { CreateSeasonScreen } from '../features/leagues/components/CreateSeasonS
 import { CreateMatchScreen } from '../features/matches/components/CreateMatchScreen';
 import { MatchDetailScreen } from '../features/matches/components/MatchDetailScreen';
 import { PlayerProfileScreen } from '../features/profiles/components/PlayerProfileScreen';
+import { brand } from '../theme/brand';
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const AppStack = createNativeStackNavigator<AppStackParamList>();
 
-export function RootNavigator() {
-  const { user, loading, passwordRecovery, clearPasswordRecovery } = useAuth();
-  const [splashDone, setSplashDone] = useState(false);
-
-  if (!splashDone) {
-    return <BrandSplash onDone={() => setSplashDone(true)} />;
-  }
-
-  if (loading) return null;
-
-  if (passwordRecovery) {
-    return (
-      <UpdatePasswordScreen
-        onDone={() => {
-          clearPasswordRecovery();
-        }}
-      />
-    );
-  }
-
+function AuthNavigator() {
   return (
-    <Stack.Navigator
-      key={user ? 'app' : 'auth'}
-      initialRouteName={user ? 'Main' : 'Login'}
-      screenOptions={{ headerShown: true }}
-    >
-      <Stack.Screen name="Login" options={{ headerShown: false }}>
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Login">
         {(props) => (
           <LoginScreen
             onLogin={async (email, password) => {
@@ -57,8 +36,8 @@ export function RootNavigator() {
             onGoToForgotPassword={() => props.navigation.navigate('ForgotPassword')}
           />
         )}
-      </Stack.Screen>
-      <Stack.Screen name="Register" options={{ headerShown: false }}>
+      </AuthStack.Screen>
+      <AuthStack.Screen name="Register">
         {(props) => (
           <RegisterScreen
             onRegister={async (email, password, displayName) => {
@@ -67,16 +46,31 @@ export function RootNavigator() {
             onGoToLogin={() => props.navigation.navigate('Login')}
           />
         )}
-      </Stack.Screen>
-      <Stack.Screen name="ForgotPassword" options={{ headerShown: false }}>
+      </AuthStack.Screen>
+      <AuthStack.Screen name="ForgotPassword">
         {(props) => (
           <ForgotPasswordScreen
             initialEmail={props.route.params?.email}
             onGoToLogin={() => props.navigation.navigate('Login')}
           />
         )}
-      </Stack.Screen>
-      <Stack.Screen
+      </AuthStack.Screen>
+      <AuthStack.Screen name="UpdatePassword">
+        {() => <UpdatePasswordScreen onDone={() => undefined} />}
+      </AuthStack.Screen>
+    </AuthStack.Navigator>
+  );
+}
+
+function AppNavigator({ userId }: { userId: string }) {
+  return (
+    <AppStack.Navigator
+      screenOptions={{
+        headerShown: true,
+        headerTintColor: '#000',
+      }}
+    >
+      <AppStack.Screen
         name="Main"
         options={{
           title: "J'aime le foot",
@@ -94,13 +88,11 @@ export function RootNavigator() {
             onLeaguePress={(leagueId) => props.navigation.navigate('LeagueDetail', { leagueId })}
             onCreateLeague={() => props.navigation.navigate('CreateLeague')}
             onJoinLeague={() => props.navigation.navigate('JoinLeague')}
-            onMyProfile={() =>
-              user?.id && props.navigation.navigate('PlayerProfile', { playerId: user.id })
-            }
+            onMyProfile={() => props.navigation.navigate('PlayerProfile', { playerId: userId })}
           />
         )}
-      </Stack.Screen>
-      <Stack.Screen name="CreateLeague" options={{ title: 'Créer une ligue' }}>
+      </AppStack.Screen>
+      <AppStack.Screen name="CreateLeague" options={{ title: 'Créer une ligue' }}>
         {(props) => (
           <CreateLeagueScreen
             onSuccess={(leagueId) => {
@@ -109,8 +101,8 @@ export function RootNavigator() {
             onCancel={() => props.navigation.goBack()}
           />
         )}
-      </Stack.Screen>
-      <Stack.Screen name="JoinLeague" options={{ title: 'Rejoindre' }}>
+      </AppStack.Screen>
+      <AppStack.Screen name="JoinLeague" options={{ title: 'Rejoindre' }}>
         {(props) => (
           <JoinLeagueScreen
             onSuccess={(leagueId) => {
@@ -119,8 +111,8 @@ export function RootNavigator() {
             onCancel={() => props.navigation.goBack()}
           />
         )}
-      </Stack.Screen>
-      <Stack.Screen name="LeagueDetail" options={{ title: 'Ligue' }}>
+      </AppStack.Screen>
+      <AppStack.Screen name="LeagueDetail" options={{ title: 'Ligue' }}>
         {(props) => (
           <LeagueDetailScreen
             leagueId={props.route.params.leagueId}
@@ -134,13 +126,11 @@ export function RootNavigator() {
                 seasonId,
               })
             }
-            onPlayerPress={(playerId) =>
-              props.navigation.navigate('PlayerProfile', { playerId })
-            }
+            onPlayerPress={(playerId) => props.navigation.navigate('PlayerProfile', { playerId })}
           />
         )}
-      </Stack.Screen>
-      <Stack.Screen name="CreateSeason" options={{ title: 'Nouvelle saison' }}>
+      </AppStack.Screen>
+      <AppStack.Screen name="CreateSeason" options={{ title: 'Nouvelle saison' }}>
         {(props) => (
           <CreateSeasonScreen
             leagueId={props.route.params.leagueId}
@@ -148,8 +138,8 @@ export function RootNavigator() {
             onCancel={() => props.navigation.goBack()}
           />
         )}
-      </Stack.Screen>
-      <Stack.Screen name="CreateMatch" options={{ title: 'Nouveau match' }}>
+      </AppStack.Screen>
+      <AppStack.Screen name="CreateMatch" options={{ title: 'Nouveau match' }}>
         {(props) => (
           <CreateMatchScreen
             leagueId={props.route.params.leagueId}
@@ -160,23 +150,63 @@ export function RootNavigator() {
             onCancel={() => props.navigation.goBack()}
           />
         )}
-      </Stack.Screen>
-      <Stack.Screen name="MatchDetail" options={{ title: 'Match' }}>
+      </AppStack.Screen>
+      <AppStack.Screen name="MatchDetail" options={{ title: 'Match' }}>
         {(props) => <MatchDetailScreen matchId={props.route.params.matchId} />}
-      </Stack.Screen>
-      <Stack.Screen name="PlayerProfile" options={{ title: 'Profil' }}>
+      </AppStack.Screen>
+      <AppStack.Screen name="PlayerProfile" options={{ title: 'Profil' }}>
         {(props) => (
           <PlayerProfileScreen
             playerId={props.route.params.playerId}
             onBack={() => props.navigation.goBack()}
           />
         )}
-      </Stack.Screen>
-    </Stack.Navigator>
+      </AppStack.Screen>
+    </AppStack.Navigator>
   );
 }
 
+export function RootNavigator() {
+  const { user, loading, passwordRecovery, clearPasswordRecovery } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
+
+  if (!splashDone) {
+    return <BrandSplash onDone={() => setSplashDone(true)} />;
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.boot}>
+        <ActivityIndicator color={brand.lime} size="large" />
+      </View>
+    );
+  }
+
+  if (passwordRecovery) {
+    return (
+      <UpdatePasswordScreen
+        onDone={() => {
+          clearPasswordRecovery();
+        }}
+      />
+    );
+  }
+
+  // Navigateurs séparés : dès qu’il y a une session, on quitte complètement l’auth
+  if (!user) {
+    return <AuthNavigator />;
+  }
+
+  return <AppNavigator userId={user.id} />;
+}
+
 const styles = StyleSheet.create({
+  boot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: brand.ink,
+  },
   headerButton: {
     marginHorizontal: 8,
     paddingVertical: 8,

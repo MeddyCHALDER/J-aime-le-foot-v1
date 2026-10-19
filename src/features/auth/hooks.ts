@@ -9,26 +9,43 @@ export function useAuth() {
   const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   useEffect(() => {
-    getSession().then((s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      setLoading(false);
-    });
+    let mounted = true;
+
+    getSession()
+      .then((s) => {
+        if (!mounted) return;
+        setSession(s);
+        setUser(s?.user ?? null);
+      })
+      .catch((err) => {
+        console.error('[auth] getSession', err);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
 
     const {
       data: { subscription },
     } = onAuthStateChange((event, s) => {
+      if (!mounted) return;
+      const next = s as Session | null;
+
       if (event === 'PASSWORD_RECOVERY') {
         setPasswordRecovery(true);
       }
       if (event === 'SIGNED_OUT') {
         setPasswordRecovery(false);
       }
-      setSession(s as Session | null);
-      setUser((s as Session | null)?.user ?? null);
+
+      setSession(next);
+      setUser(next?.user ?? null);
+      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   return {
