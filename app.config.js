@@ -11,7 +11,7 @@ module.exports = {
   splash: {
     image: './assets/logo.png',
     resizeMode: 'contain',
-    backgroundColor: '#C9FF00',
+    backgroundColor: '#C6FF00',
   },
   assetBundlePatterns: ['**/*'],
   web: {
@@ -21,8 +21,8 @@ module.exports = {
     name: "J'aime le foot",
     shortName: "J'aime le foot",
     description: 'Foot amateur entre potes — ligues, matchs, classements joueurs',
-    themeColor: '#C9FF00',
-    backgroundColor: '#ffffff',
+    themeColor: '#C6FF00',
+    backgroundColor: '#0e100d',
     display: 'standalone',
     lang: 'fr',
   },

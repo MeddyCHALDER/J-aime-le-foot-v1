@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#C9FF00',
+    borderColor: '#C6FF00',
     backgroundColor: '#f7ffe0',
   },
   inviteCode: { marginTop: 8, letterSpacing: 4, fontWeight: '700' },
