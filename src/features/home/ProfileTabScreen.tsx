@@ -7,6 +7,7 @@ import { useAuth } from '../auth/hooks';
 import { signOut } from '../auth/api';
 import { useProfile } from '../profiles/hooks';
 import { usePlayerCard } from '../cards/hooks';
+import { FifaCard } from '../cards/FifaCard';
 import { LoadingState, ErrorState } from '../../ui';
 import { useHomeContext } from './useHomeContext';
 
@@ -32,13 +33,6 @@ export function ProfileTabScreen({
   if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
   if (!profile) return null;
 
-  const initials = profile.display_name
-    .split(' ')
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: tokens.ink }}
@@ -54,22 +48,18 @@ export function ProfileTabScreen({
       </Text>
 
       <View style={styles.hero}>
-        <View style={[styles.avatar, { backgroundColor: 'rgba(198,255,0,0.18)' }]}>
-          <Text style={[styles.initials, { color: tokens.onLime, fontFamily: fonts.display }]}>
-            {initials}
-          </Text>
-        </View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={[styles.meta, { color: tokens.muted, fontFamily: fonts.body }]}>
-            {profile.preferred_position ?? 'Poste non renseigné'}
-            {league ? ` · ${league.name}` : ''}
-          </Text>
-          {card ? (
-            <Text style={[styles.ovr, { color: tokens.lime, fontFamily: fonts.display }]}>
-              OVR {card.overallRating}
-            </Text>
-          ) : null}
-        </View>
+        <FifaCard
+          displayName={profile.display_name}
+          position={profile.preferred_position}
+          avatarUrl={profile.avatar_url}
+          clubLabel={league?.name}
+          strongFoot={profile.strong_foot}
+          card={card ?? null}
+          size="big"
+        />
+        <Text style={[styles.heroHint, { color: tokens.muted, fontFamily: fonts.body }]}>
+          Chaque match fait bouger ta note. Touche la carte pour l’effet 3D.
+        </Text>
       </View>
 
       <View style={[styles.card, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>
@@ -130,17 +120,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 20,
   },
-  hero: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
-  avatar: {
-    width: 74,
-    height: 74,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initials: { fontSize: 26, fontStyle: 'italic', fontWeight: '700' },
-  meta: { fontSize: 14 },
-  ovr: { fontSize: 20, fontStyle: 'italic', fontWeight: '700' },
+  hero: { alignItems: 'center', marginBottom: 24 },
+  heroHint: { marginTop: 14, fontSize: 13, lineHeight: 19, textAlign: 'center', maxWidth: 280 },
   card: {
     borderWidth: 1,
     borderRadius: 16,
