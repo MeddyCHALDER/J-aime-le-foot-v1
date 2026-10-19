@@ -45,8 +45,14 @@ Le fichier [`render.yaml`](../render.yaml) à la racine du dépôt est un Bluepr
 
 1. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
 2. Connecter le dépôt `MeddyCHALDER/J-aime-le-foot-v1`
-3. Au premier deploy, renseigner **`DATABASE_URL`** (Neon, chaîne Postgres)
+3. Renseigner **`DATABASE_URL`** avec la chaîne Neon **complète**, qui doit
+   commencer par `postgresql://` ou `postgres://` (Console Neon →
+   Connection string → URI). Pas de guillemets, pas de valeur vide : sinon
+   Prisma plante en `P1012` au `migrate deploy`.
 4. `JWT_SECRET` est généré automatiquement ; `CORS_ORIGIN` pointe déjà vers `jaimelefoot.app`
+
+Si le build a déjà échoué : **Service → Environment → DATABASE_URL** → coller
+l’URI Neon → **Save** → **Manual Deploy → Deploy latest commit**.
 
 Réglages manuels équivalents :
 
