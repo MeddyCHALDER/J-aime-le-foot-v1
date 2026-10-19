@@ -36,7 +36,7 @@ export function MainTabsScreen({
           styles.body,
           Platform.OS === 'web'
             ? ({
-                paddingBottom: `calc(76px + env(safe-area-inset-bottom, 0px))`,
+                paddingBottom: `calc(58px + max(18px, env(safe-area-inset-bottom, 0px)))`,
               } as object)
             : { paddingBottom: tabBarHeight },
         ]}

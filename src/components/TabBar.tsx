@@ -21,7 +21,7 @@ const TABS: TabDef[] = [
 
 /** Hauteur zone onglets (icône + label), comme le Next. */
 export const TAB_ITEM_HEIGHT = 58;
-/** Padding design sous les labels, hors safe-area. */
+/** Padding minimal sous les labels ; la zone de la barre d'accueil iOS le remplace quand elle est plus grande. */
 export const TAB_PAD_EXTRA = 18;
 
 /** Hauteur totale réservée au dock (pour padding du contenu). */
@@ -37,9 +37,9 @@ export function useTabBarHeight() {
         : 0;
     // Fallback raisonnable iPhone home indicator si la var CSS n’est pas encore là
     const safe = cssInset > 0 ? cssInset : 0;
-    return TAB_ITEM_HEIGHT + TAB_PAD_EXTRA + safe;
+    return TAB_ITEM_HEIGHT + Math.max(TAB_PAD_EXTRA, safe);
   }
-  return TAB_ITEM_HEIGHT + TAB_PAD_EXTRA + insets.bottom;
+  return TAB_ITEM_HEIGHT + Math.max(TAB_PAD_EXTRA, insets.bottom);
 }
 
 interface TabBarProps {
@@ -58,9 +58,9 @@ export function TabBar({ active, onChange }: TabBarProps) {
   const bottomPadStyle =
     Platform.OS === 'web'
       ? ({
-          paddingBottom: `calc(${TAB_PAD_EXTRA}px + env(safe-area-inset-bottom, 0px))`,
+          paddingBottom: `max(${TAB_PAD_EXTRA}px, env(safe-area-inset-bottom, 0px))`,
         } as object)
-      : { paddingBottom: TAB_PAD_EXTRA + insets.bottom };
+      : { paddingBottom: Math.max(TAB_PAD_EXTRA, insets.bottom) };
 
   return (
     <View

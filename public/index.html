@@ -54,6 +54,15 @@
         flex-direction: column;
         background-color: transparent;
       }
+      /* iOS 26, app installée (WebKit 301108) : le viewport est plus court que l'écran de la
+         hauteur de la barre d'état tant que la page est plus petite que l'écran, ce qui décolle
+         du bas tout ce qui est fixé à bottom: 0. Une page à la hauteur de l'écran complet
+         récupère le viewport entier. min() évite tout débordement si l'inset du haut vaut 0. */
+      @media (display-mode: standalone) {
+        html {
+          min-height: min(100lvh, calc(100% + env(safe-area-inset-top, 0px)));
+        }
+      }
       body {
         position: fixed;
         inset: 0;
