@@ -45,14 +45,22 @@ Le fichier [`render.yaml`](../render.yaml) à la racine du dépôt est un Bluepr
 
 1. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
 2. Connecter le dépôt `MeddyCHALDER/J-aime-le-foot-v1`
-3. Renseigner **`DATABASE_URL`** avec la chaîne Neon **complète**, qui doit
-   commencer par `postgresql://` ou `postgres://` (Console Neon →
-   Connection string → URI). Pas de guillemets, pas de valeur vide : sinon
-   Prisma plante en `P1012` au `migrate deploy`.
+3. Renseigner **`DATABASE_URL`** avec une URI Postgres qui commence par
+   `postgresql://`. Sur **Supabase** : Project Settings → Database →
+   **Connection string** → choisir **Session pooler** (pas « Direct »).
+
+   - Direct `db.<ref>.supabase.co:5432` échoue souvent depuis Render
+     (`P1001` : hôte IPv6-only).
+   - Pooler (IPv4), exemple :
+     `postgresql://postgres.<ref>:[PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres`
+   - Pour Prisma + PgBouncer en mode transaction (port `6543`), ajouter
+     `?pgbouncer=true` ; pour `migrate deploy`, préférer le **Session** pooler
+     (port `5432` sur l’hôte `pooler.supabase.com`).
+
 4. `JWT_SECRET` est généré automatiquement ; `CORS_ORIGIN` pointe déjà vers `jaimelefoot.app`
 
 Si le build a déjà échoué : **Service → Environment → DATABASE_URL** → coller
-l’URI Neon → **Save** → **Manual Deploy → Deploy latest commit**.
+l’URI pooler → **Save** → **Manual Deploy → Deploy latest commit**.
 
 Réglages manuels équivalents :
 
