@@ -5,8 +5,9 @@
   "scripts": {
     "start": "expo start --web",
     "web": "expo start --web",
-    "build": "expo export --platform web",
-    "build:web": "expo export --platform web",
+    "build": "node scripts/stamp-sw.js && expo export --platform web && node scripts/stamp-sw.js",
+    "build:web": "node scripts/stamp-sw.js && expo export --platform web && node scripts/stamp-sw.js",
+    "stamp-sw": "node scripts/stamp-sw.js",
     "serve:web": "npx serve dist",
     "lint": "eslint . --ext .ts,.tsx",
     "format": "prettier --write \"src/**/*.{ts,tsx}\""
