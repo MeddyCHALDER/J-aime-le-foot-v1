@@ -1,0 +1,343 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   J'aime le Foot — identité lime / noir
+   Les jetons sont redéfinis par [data-theme] pour que la bascule
+   clair / sombre du Profil n'ait rien à recompiler.
+   ========================================================================== */
+
+:root {
+  /* Encoche / barre d'état : nul sur desktop, réel sur mobile. */
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+:root,
+:root[data-theme='dark'] {
+  --bg: #0e100d;
+  --surface: #181b16;
+  --surface2: #22261f;
+  --line: rgba(255, 255, 255, 0.1);
+  --txt: #f2f4ee;
+  --txt2: rgba(242, 244, 238, 0.55);
+  --txt3: rgba(242, 244, 238, 0.42);
+  --lime: #c6ff00;
+  --tabbar: rgba(14, 16, 13, 0.92);
+  --scrim: rgba(0, 0, 0, 0.55);
+  /* Fond des jauges (stats, effectif) : doit rester visible dans les deux thèmes. */
+  --track: rgba(255, 255, 255, 0.09);
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f4f5ef;
+  --surface: #ffffff;
+  --surface2: #ebede4;
+  --line: rgba(0, 0, 0, 0.1);
+  --txt: #1b1d19;
+  --txt2: rgba(27, 29, 25, 0.55);
+  --txt3: rgba(27, 29, 25, 0.42);
+  --lime: #c6ff00;
+  --tabbar: rgba(255, 255, 255, 0.92);
+  --scrim: rgba(0, 0, 0, 0.4);
+  --track: rgba(27, 29, 25, 0.12);
+  color-scheme: light;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  background: #0a0b09;
+  color: var(--txt);
+  font-family: var(--font-barlow), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: var(--lime);
+  text-decoration: none;
+}
+
+/* Le design masque les barres de défilement dans le téléphone. */
+.no-bar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.no-bar {
+  scrollbar-width: none;
+}
+
+/* ==========================================================================
+   Animations reprises du prototype
+   ========================================================================== */
+
+@keyframes jlfShine {
+  0% {
+    transform: translateX(-120%) rotate(18deg);
+  }
+  55%,
+  100% {
+    transform: translateX(240%) rotate(18deg);
+  }
+}
+@keyframes jlfRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes jlfPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes jlfBar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* ==========================================================================
+   Échelle typographique
+   Chakra Petch italique pour les chiffres et les titres, Barlow pour le reste.
+   ========================================================================== */
+
+@layer components {
+  /* Chiffres et titres — la taille reste à la charge de l'appelant. */
+  .t-num {
+    font-family: var(--font-chakra), sans-serif;
+    font-style: italic;
+    font-weight: 700;
+  }
+
+  .t-title {
+    font-family: var(--font-chakra), sans-serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 24px;
+    line-height: 1;
+    color: var(--txt);
+  }
+
+  .t-section {
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--txt2);
+  }
+
+  .t-field {
+    font-weight: 600;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--txt2);
+  }
+
+  .t-item {
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 1.2;
+    color: var(--txt);
+  }
+
+  .t-item-sm {
+    font-weight: 700;
+    font-size: 13.5px;
+    line-height: 1.2;
+    color: var(--txt);
+  }
+
+  .t-sub {
+    font-weight: 500;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--txt2);
+  }
+
+  .t-sub-xs {
+    font-weight: 500;
+    font-size: 11.5px;
+    line-height: 1;
+    color: var(--txt3);
+  }
+
+  .t-body {
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.45;
+    color: var(--txt);
+    text-wrap: pretty;
+  }
+
+  .t-mono {
+    font-family: ui-monospace, Menlo, monospace;
+    font-weight: 500;
+    font-size: 9.5px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+  }
+
+  /* ---- Surfaces récurrentes ---- */
+
+  .card {
+    border-radius: 14px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+
+  .card-lg {
+    border-radius: 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+
+  /* Bloc mis en avant : le halo lime du prototype. */
+  .card-hot {
+    border-radius: 16px;
+    border: 1px solid rgba(198, 255, 0, 0.26);
+    background:
+      linear-gradient(165deg, rgba(198, 255, 0, 0.13), rgba(198, 255, 0, 0.02) 60%),
+      var(--surface);
+  }
+
+  /* ---- Boutons ---- */
+
+  .btn-lime {
+    border: 0;
+    background: var(--lime);
+    color: #12140f;
+    font-family: var(--font-chakra), sans-serif;
+    font-style: italic;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    box-shadow: 0 10px 26px rgba(198, 255, 0, 0.22);
+    transition: all 0.2s ease;
+  }
+  .btn-lime:disabled {
+    opacity: 0.55;
+    cursor: default;
+    box-shadow: none;
+  }
+
+  .btn-ghost {
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--txt2);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-dashed {
+    border: 1px dashed rgba(198, 255, 0, 0.45);
+    background: rgba(198, 255, 0, 0.06);
+    color: var(--lime);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  /* Conteneur des contrôles segmentés (Classement/Palmarès, Direct/Replay…). */
+  .seg {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+
+  .seg-btn {
+    flex: 1;
+    height: 38px;
+    border-radius: 9px;
+    border: 0;
+    cursor: pointer;
+    background: transparent;
+    color: var(--txt2);
+    font-weight: 600;
+    font-size: 13px;
+    transition: all 0.18s ease;
+  }
+
+  .seg-btn[data-on='true'] {
+    background: var(--lime);
+    color: #12140f;
+    font-weight: 700;
+  }
+
+  /* Puce de choix (poste, pied fort, type d'événement). */
+  .chip-pick {
+    height: 40px;
+    padding: 0 15px;
+    border-radius: 11px;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--txt2);
+    font-weight: 600;
+    font-size: 13.5px;
+    transition: all 0.18s ease;
+  }
+
+  .chip-pick[data-on='true'] {
+    border-color: transparent;
+    background: var(--lime);
+    color: #12140f;
+    font-weight: 700;
+  }
+
+  /* Champ en lecture seule du formulaire de création. */
+  .field-box {
+    min-height: 52px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.3;
+    color: var(--txt);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .field-box::placeholder {
+    color: var(--txt3);
+    font-weight: 400;
+  }
+}
+
+/* Média manquant : le hachurage du prototype, en attendant les vrais visuels. */
+.stripes {
+  background: repeating-linear-gradient(
+    122deg,
+    var(--stripe, #1a2114) 0 16px,
+    rgba(255, 255, 255, 0.045) 16px 32px
+  );
+}

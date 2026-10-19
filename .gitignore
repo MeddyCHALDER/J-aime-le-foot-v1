@@ -8,10 +8,14 @@ node_modules/
 dist/
 .expo/
 web-build/
+frontend/node_modules/
+frontend/.next/
+backend/node_modules/
+backend/src/uploads/*
+!backend/src/uploads/.gitkeep
 
 # OS / IDE
 .DS_Store
 *.log
 .idea/
 .vscode/
-.design-backup/

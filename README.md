@@ -2,7 +2,17 @@
 
 **Application web (PWA)** — foot amateur entre potes. Accessible dans le navigateur, installable sur l’écran d’accueil du téléphone (iOS / Android) sans App Store.
 
-## Stack
+## Monorepo
+
+| Dossier | Origine | Rôle |
+| --- | --- | --- |
+| **Racine** (`src/`, `App.tsx`…) | `J-aime-le-foot-v1` | **PWA Expo** déployée sur Vercel (`jaimelefoot.app`) + Supabase |
+| `frontend/` | [J-aime-le-foot](https://github.com/MeddyCHALDER/J-aime-le-foot) | App **Next.js** (carte FIFA, matchs club, feed, admin feuille…) |
+| `backend/` | idem | API **Express + Prisma** (Neon) pour le front Next |
+| `AGENTS.md` | idem | Repères produit (boucle terrain → carte) |
+| `src/features/cards/card-rules.ts` | porté depuis Next | Règles note / stats carte côté Expo |
+
+## Stack (PWA Expo — prod actuelle)
 
 - **Expo** ~52 + **React Native Web** + **TypeScript**
 - **UI** : React Native Paper (Material 3)

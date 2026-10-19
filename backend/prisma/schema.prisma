@@ -1,0 +1,431 @@
+// Schéma Prisma pour "J'aime le Foot"
+// À utiliser avec une base PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String?  @unique
+  passwordHash String
+  role         UserRole @default(PLAYER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  playerProfile          PlayerProfile?
+  posts                  Post[]
+  postLikes              PostLike[]
+  postComments           PostComment[]
+  createdChallenges      Challenge[]
+  challengeEntries       ChallengeEntry[]
+  createdTournaments     Tournament[]
+  awardVotes             AwardVote[]
+  sentMessages           PrivateMessage[]        @relation("MessageSender")
+  receivedMessages       PrivateMessage[]        @relation("MessageReceiver")
+  notifications          Notification[]
+  createdClubMatches     ClubMatch[]             @relation("ClubMatchCreator")
+  createdTeamInvites     TeamInvite[]            @relation("TeamInviteCreator")
+  clubMatchRegistrations ClubMatchRegistration[] @relation("ClubMatchRegistrationUser")
+}
+
+model PlayerProfile {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  firstName   String
+  lastName    String
+  birthDate   DateTime?
+  position    String? // ATT, MC, DC, G...
+  strongFoot  String? // gauche, droit, les deux
+  heightCm    Int?
+  weightKg    Int?
+  currentClub String?
+  shirtNumber Int?
+  avatarUrl   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user  User         @relation(fields: [userId], references: [id])
+  cards PlayerCard[]
+
+  teamMemberships        TeamMember[]
+  awardNominations       AwardNomination[]
+  matchStats             PlayerMatchStat[]
+  clubMatchRegistrations ClubMatchRegistration[]
+  clubMatchStats         ClubMatchStat[]
+}
+
+model PlayerCard {
+  id              String   @id @default(uuid())
+  playerProfileId String
+  overallRating   Int
+  pace            Int
+  shooting        Int
+  passing         Int
+  dribbling       Int
+  defending       Int
+  physical        Int
+  imageUrl        String?
+  createdAt       DateTime @default(now())
+
+  playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
+}
+
+model Post {
+  id           String   @id @default(uuid())
+  userId       String
+  type         PostType @default(VIDEO)
+  videoUrl     String?
+  thumbnailUrl String?
+  title        String
+  description  String?
+  createdAt    DateTime @default(now())
+
+  user             User              @relation(fields: [userId], references: [id])
+  likes            PostLike[]
+  comments         PostComment[]
+  challengeEntries ChallengeEntry[]
+  awardNominations AwardNomination[]
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Challenge {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  createdBy User             @relation(fields: [createdById], references: [id])
+  entries   ChallengeEntry[]
+}
+
+model ChallengeEntry {
+  id          String   @id @default(uuid())
+  challengeId String
+  postId      String
+  userId      String
+  createdAt   DateTime @default(now())
+
+  challenge Challenge @relation(fields: [challengeId], references: [id])
+  post      Post      @relation(fields: [postId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+model Team {
+  id        String   @id @default(uuid())
+  name      String
+  logoUrl   String?
+  createdAt DateTime @default(now())
+
+  members         TeamMember[]
+  invites         TeamInvite[]
+  tournamentTeams TournamentTeam[]
+  homeMatches     Match[]          @relation("HomeTeam")
+  awayMatches     Match[]          @relation("AwayTeam")
+  clubMatches     ClubMatch[]
+  clubMatchStats  ClubMatchStat[]
+}
+
+/// Lien d'invitation à un club. L'admin le partage à ses joueurs ; l'ouvrir
+/// enchaîne l'onboarding puis rattache le joueur à l'équipe.
+/// Réutilisable (un seul lien pour tout un groupe), révocable en le régénérant.
+model TeamInvite {
+  id          String    @id @default(uuid())
+  token       String    @unique
+  teamId      String
+  createdById String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  usedCount   Int       @default(0)
+
+  team      Team @relation(fields: [teamId], references: [id])
+  createdBy User @relation("TeamInviteCreator", fields: [createdById], references: [id])
+
+  @@index([teamId])
+}
+
+model TeamMember {
+  id              String   @id @default(uuid())
+  teamId          String
+  playerProfileId String
+  joinedAt        DateTime @default(now())
+
+  team          Team          @relation(fields: [teamId], references: [id])
+  playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
+}
+
+model Tournament {
+  id          String         @id @default(uuid())
+  name        String
+  type        TournamentType @default(LEAGUE)
+  season      String?
+  createdById String
+  createdAt   DateTime       @default(now())
+
+  createdBy   User              @relation(fields: [createdById], references: [id])
+  teams       TournamentTeam[]
+  matches     Match[]
+  awards      Award[]
+  playerStats PlayerMatchStat[]
+  clubMatches ClubMatch[]
+}
+
+model TournamentTeam {
+  id           String @id @default(uuid())
+  tournamentId String
+  teamId       String
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id])
+  team       Team       @relation(fields: [teamId], references: [id])
+}
+
+model Match {
+  id           String   @id @default(uuid())
+  tournamentId String
+  homeTeamId   String
+  awayTeamId   String
+  matchDate    DateTime
+  homeScore    Int?
+  awayScore    Int?
+  round        Int? // Journée (1, 2, 3...)
+  createdAt    DateTime @default(now())
+
+  tournament  Tournament        @relation(fields: [tournamentId], references: [id])
+  homeTeam    Team              @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam    Team              @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  playerStats PlayerMatchStat[]
+}
+
+model PlayerMatchStat {
+  id              String       @id @default(uuid())
+  matchId         String
+  playerProfileId String
+  tournamentId    String
+  goals           Int          @default(0)
+  assists         Int          @default(0)
+  yellowCards     Int          @default(0)
+  redCards        Int          @default(0)
+  minutesPlayed   Int?
+  // Pour le classement par joueur dans les championnats
+  matchResult     MatchResult? // WIN, DRAW, LOSS (basé sur le résultat de l'équipe du joueur)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  match         Match         @relation(fields: [matchId], references: [id])
+  playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
+  tournament    Tournament    @relation(fields: [tournamentId], references: [id])
+
+  @@unique([matchId, playerProfileId])
+}
+
+enum MatchResult {
+  WIN
+  DRAW
+  LOSS
+}
+
+model Award {
+  id           String    @id @default(uuid())
+  type         AwardType
+  name         String
+  season       String?
+  tournamentId String?
+  createdAt    DateTime  @default(now())
+
+  tournament  Tournament?       @relation(fields: [tournamentId], references: [id])
+  nominations AwardNomination[]
+  votes       AwardVote[]
+}
+
+model AwardNomination {
+  id              String   @id @default(uuid())
+  awardId         String
+  playerProfileId String
+  postId          String?
+  createdAt       DateTime @default(now())
+
+  award         Award         @relation(fields: [awardId], references: [id])
+  playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
+  post          Post?         @relation(fields: [postId], references: [id])
+  votes         AwardVote[]
+}
+
+model AwardVote {
+  id           String   @id @default(uuid())
+  awardId      String
+  userId       String
+  nominationId String
+  createdAt    DateTime @default(now())
+
+  award      Award           @relation(fields: [awardId], references: [id])
+  user       User            @relation(fields: [userId], references: [id])
+  nomination AwardNomination @relation(fields: [nominationId], references: [id])
+
+  @@unique([awardId, userId])
+}
+
+enum UserRole {
+  PLAYER
+  COACH
+  ADMIN
+}
+
+enum PostType {
+  VIDEO
+  TEXT
+}
+
+enum TournamentType {
+  CUP
+  LEAGUE
+}
+
+enum AwardType {
+  BALLON_DOR
+  PUSKAS
+  PICHICHI
+  GOLDEN_GLOVE
+  BEST_YOUNG
+}
+
+model PrivateMessage {
+  id         String    @id @default(uuid())
+  senderId   String
+  receiverId String
+  content    String
+  read       Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+
+  sender   User @relation("MessageSender", fields: [senderId], references: [id])
+  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id])
+
+  @@index([senderId, receiverId])
+  @@index([receiverId, read])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  content   String?
+  link      String? // URL vers la ressource concernée
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  readAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+enum NotificationType {
+  POST_LIKE
+  POST_COMMENT
+  NEW_MESSAGE
+  TEAM_INVITATION
+  CHALLENGE_NEW
+  AWARD_NOMINATION
+  MATCH_RESULT
+}
+
+model ClubMatch {
+  id           String          @id @default(uuid())
+  teamId       String
+  tournamentId String? // Optionnel : lié à un championnat
+  matchDate    DateTime
+  round        Int? // Journée du championnat (1, 2, 3...)
+  status       ClubMatchStatus @default(OPEN)
+  maxPlayers   Int? // Nombre max de joueurs (par défaut 40)
+  createdById  String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  team          Team                    @relation(fields: [teamId], references: [id])
+  tournament    Tournament?             @relation(fields: [tournamentId], references: [id])
+  createdBy     User                    @relation("ClubMatchCreator", fields: [createdById], references: [id])
+  registrations ClubMatchRegistration[]
+  stats         ClubMatchStat[]
+
+  @@index([teamId, matchDate])
+  @@index([status])
+  @@index([tournamentId])
+}
+
+enum ClubMatchStatus {
+  OPEN // Inscriptions ouvertes
+  CLOSED // Inscriptions fermées
+  IN_PROGRESS // Match en cours
+  COMPLETED // Match terminé
+}
+
+model ClubMatchRegistration {
+  id              String   @id @default(uuid())
+  clubMatchId     String
+  playerProfileId String
+  userId          String
+  registeredAt    DateTime @default(now())
+
+  clubMatch     ClubMatch     @relation(fields: [clubMatchId], references: [id])
+  playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
+  user          User          @relation("ClubMatchRegistrationUser", fields: [userId], references: [id])
+
+  @@unique([clubMatchId, playerProfileId])
+  @@index([clubMatchId])
+}
+
+model ClubMatchStat {
+  id              String       @id @default(uuid())
+  clubMatchId     String
+  playerProfileId String
+  teamId          String? // Équipe du joueur dans le match (si divisé en équipes)
+  goals           Int          @default(0)
+  assists         Int          @default(0)
+  yellowCards     Int          @default(0)
+  redCards        Int          @default(0)
+  minutesPlayed   Int?
+  matchResult     MatchResult? // WIN, DRAW, LOSS
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  clubMatch     ClubMatch     @relation(fields: [clubMatchId], references: [id])
+  playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
+  team          Team?         @relation(fields: [teamId], references: [id])
+
+  @@unique([clubMatchId, playerProfileId])
+}
