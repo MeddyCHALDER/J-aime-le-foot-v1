@@ -16,6 +16,7 @@ import { CreateSeasonScreen } from '../features/leagues/components/CreateSeasonS
 import { CreateMatchScreen } from '../features/matches/components/CreateMatchScreen';
 import { MatchDetailScreen } from '../features/matches/components/MatchDetailScreen';
 import { PlayerProfileScreen } from '../features/profiles/components/PlayerProfileScreen';
+import { brand, fonts } from '../theme/brand';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -33,7 +34,16 @@ export function RootNavigator() {
     <Stack.Navigator
       key={user ? 'app' : 'auth'}
       initialRouteName={user ? 'Main' : 'Login'}
-      screenOptions={{ headerShown: true }}
+      screenOptions={{
+        headerShown: true,
+        headerStyle: { backgroundColor: brand.ink },
+        headerTintColor: brand.text,
+        headerShadowVisible: false,
+        headerTitleAlign: 'center',
+        headerTitleStyle: styles.headerTitle,
+        headerBackTitle: 'Retour',
+        contentStyle: { backgroundColor: brand.ink },
+      }}
     >
       <Stack.Screen name="Login" options={{ headerShown: false }}>
         {(props) => (
@@ -162,7 +172,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   headerButtonText: {
-    color: '#000000',
+    color: brand.muted,
+    fontFamily: fonts.body,
     fontWeight: '600',
+  },
+  headerTitle: {
+    fontFamily: fonts.display,
+    fontStyle: 'italic',
+    fontWeight: '700',
+    fontSize: 18,
+    textTransform: 'uppercase',
   },
 });

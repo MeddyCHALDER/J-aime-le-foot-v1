@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { TextInput, Button, Text } from 'react-native-paper';
 import { Screen } from '../../../ui';
 import { useJoinLeagueByCode } from '../hooks';
+import { brand } from '../../../theme/brand';
 
 interface JoinLeagueScreenProps {
   onSuccess: (leagueId: string) => void;
@@ -63,5 +64,5 @@ export function JoinLeagueScreen({ onSuccess, onCancel }: JoinLeagueScreenProps)
 const styles = StyleSheet.create({
   input: { marginBottom: 12 },
   button: { marginTop: 8 },
-  error: { color: '#b00020', marginBottom: 12, textAlign: 'center' },
+  error: { color: brand.errorText, backgroundColor: brand.errorBg, padding: 12, borderRadius: 4, marginBottom: 12 },
 });

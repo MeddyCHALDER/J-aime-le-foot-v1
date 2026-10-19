@@ -5,7 +5,7 @@ import { Text, useTheme } from 'react-native-paper';
 interface ScreenProps {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
   noScroll?: boolean;
   /** Contenu à droite du title (ex: bouton) */
   headerRight?: React.ReactNode;
@@ -30,13 +30,14 @@ export function Screen({ title, subtitle, children, noScroll, headerRight }: Scr
     </View>
   );
 
-  const content = (
+  // Sans enfants (ex. en-tête seul au-dessus d'onglets), pas de zone flex:1 qui pousserait la suite vers le bas.
+  const content = children ? (
     <View style={[styles.content, { backgroundColor: theme.colors.background }]}>{children}</View>
-  );
+  ) : null;
 
   if (noScroll) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[children ? styles.container : null, { backgroundColor: theme.colors.background }]}>
         {header}
         {content}
       </View>
@@ -74,6 +75,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
+    textTransform: 'uppercase',
   },
   subtitle: {
     marginTop: 4,

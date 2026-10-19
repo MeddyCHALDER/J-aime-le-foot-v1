@@ -4,6 +4,7 @@ import { TextInput, Button, Text } from 'react-native-paper';
 import { Screen } from '../../../ui';
 import { useCreateLeague } from '../hooks';
 import { useAuth } from '../../auth/hooks';
+import { brand } from '../../../theme/brand';
 
 interface CreateLeagueScreenProps {
   onSuccess: (leagueId: string) => void;
@@ -62,7 +63,6 @@ export function CreateLeagueScreen({ onSuccess, onCancel }: CreateLeagueScreenPr
         loading={createLeague.isPending}
         disabled={!name.trim() || createLeague.isPending}
         style={styles.button}
-        labelStyle={{ color: '#000' }}
       >
         Créer et ouvrir la ligue
       </Button>
@@ -77,5 +77,5 @@ const styles = StyleSheet.create({
   input: { marginBottom: 12 },
   button: { marginTop: 8 },
   hint: { opacity: 0.7, marginBottom: 8 },
-  error: { color: '#b00020', marginBottom: 12 },
+  error: { color: brand.errorText, backgroundColor: brand.errorBg, padding: 12, borderRadius: 4, marginBottom: 12 },
 });

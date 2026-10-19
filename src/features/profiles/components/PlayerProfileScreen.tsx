@@ -6,6 +6,7 @@ import { useProfile, useUpdateProfile } from '../hooks';
 import { useAuth } from '../../auth/hooks';
 import { pickMediaFile } from '../../media/api';
 import { useUploadMedia } from '../../media/hooks';
+import { toErrorMessage } from '../../../lib/errors';
 
 interface PlayerProfileScreenProps {
   playerId: string;
@@ -37,7 +38,7 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
   }, [profile]);
 
   if (isLoading) return <LoadingState message="Chargement du profil…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
   if (!profile) return null;
 
   const save = async () => {

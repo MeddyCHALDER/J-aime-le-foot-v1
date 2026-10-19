@@ -9,13 +9,13 @@
     />
     <title>J'aime le foot</title>
     <meta name="description" content="Foot amateur entre potes — ligues, matchs, classements joueurs" />
-    <meta name="theme-color" content="#C9FF00" />
+    <meta name="theme-color" content="#0B0F0D" />
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="J'aime le foot" />
     <meta name="mobile-web-app-capable" content="yes" />
 
@@ -29,9 +29,23 @@
         padding: 0;
         background-color: #ffffff;
       }
-      /* Empêche le bounce Safari sur mobile */
+      /* Empêche le bounce Safari sur mobile : la page ne défile jamais,
+         seuls les écrans de l'app défilent à l'intérieur. */
+      html,
       body {
+        overflow: hidden;
         overscroll-behavior: none;
+      }
+      /* La racine de l'app occupe tout l'écran ; son fond est transparent
+         pour laisser voir la couleur de page choisie par l'écran affiché. */
+      #root {
+        display: flex;
+        flex-direction: column;
+        background-color: transparent;
+      }
+      body {
+        position: fixed;
+        inset: 0;
         -webkit-tap-highlight-color: transparent;
       }
     </style>

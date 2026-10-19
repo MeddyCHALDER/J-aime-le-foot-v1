@@ -23,6 +23,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import { Screen, LoadingState, ErrorState, SectionHeader } from '../../../ui';
 import type { MatchEventType } from '../../../types/entities';
+import { toErrorMessage } from '../../../lib/errors';
 
 const EVENT_LABELS: Record<MatchEventType, string> = {
   goal: 'But',
@@ -92,7 +93,7 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
   }, [playersForSide, eventPlayerId]);
 
   if (isLoading) return <LoadingState message="Chargement du match…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
   if (!match) return null;
 
   const date = new Date(match.kickoff_at);

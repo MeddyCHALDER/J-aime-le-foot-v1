@@ -34,7 +34,7 @@ export function EntityCard({ title, subtitle, chips, onPress, left }: EntityCard
           {chips && chips.length > 0 ? (
             <View style={styles.chipRow}>
               {chips.map((c) => (
-                <Text key={c} variant="labelSmall" style={styles.chip}>
+                <Text key={c} variant="labelSmall" style={[styles.chip, { color: theme.colors.primary }]}>
                   {c}
                 </Text>
               ))}
@@ -49,7 +49,7 @@ export function EntityCard({ title, subtitle, chips, onPress, left }: EntityCard
 const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
-    borderRadius: 12,
+    borderRadius: 4,
   },
   content: {
     paddingHorizontal: 16,
@@ -72,6 +72,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   chip: {
-    opacity: 0.8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
 });

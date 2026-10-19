@@ -1,9 +1,10 @@
 import React from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { Button, Chip, Text, useTheme } from 'react-native-paper';
+import { Button, Text, useTheme } from 'react-native-paper';
 import { useLeagues } from '../hooks';
 import { useAuth } from '../../auth/hooks';
 import { Screen, EntityCard, EmptyState, LoadingState, ErrorState } from '../../../ui';
+import { toErrorMessage } from '../../../lib/errors';
 
 interface LeagueListScreenProps {
   onLeaguePress: (leagueId: string) => void;
@@ -23,7 +24,7 @@ export function LeagueListScreen({
   const { data: leagues = [], isLoading, error, refetch, isRefetching } = useLeagues();
 
   if (isLoading) return <LoadingState message="Chargement de tes ligues…" />;
-  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -31,7 +32,7 @@ export function LeagueListScreen({
         title="Mes ligues"
         subtitle="Joue, suis le classement, organise"
         headerRight={
-          <Button compact onPress={onMyProfile} textColor="#000">
+          <Button compact icon="account-circle" onPress={onMyProfile}>
             Profil
           </Button>
         }
@@ -43,7 +44,6 @@ export function LeagueListScreen({
             icon="account-plus"
             onPress={onJoinLeague}
             style={styles.actionBtn}
-            labelStyle={styles.actionLabel}
           >
             Rejoindre
           </Button>
@@ -52,7 +52,6 @@ export function LeagueListScreen({
             icon="plus"
             onPress={onCreateLeague}
             style={styles.actionBtn}
-            labelStyle={styles.actionLabel}
           >
             Créer
           </Button>
@@ -81,20 +80,13 @@ export function LeagueListScreen({
                   subtitle={item.city ?? undefined}
                   chips={isAdmin ? ['Admin'] : ['Joueur']}
                   onPress={() => onLeaguePress(item.id)}
-                  left={
-                    isAdmin ? (
-                      <Chip compact style={{ backgroundColor: theme.colors.primary }}>
-                        Admin
-                      </Chip>
-                    ) : undefined
-                  }
                 />
               );
             }}
           />
         )}
       </Screen>
-      <Text variant="bodySmall" style={styles.hint}>
+      <Text variant="bodySmall" style={[styles.hint, { color: theme.colors.onSurfaceVariant }]}>
         Lambda = rejoindre · Admin = créer / inviter / saisir les matchs
       </Text>
     </View>
@@ -109,11 +101,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   actionBtn: { flex: 1 },
-  actionLabel: { color: '#000000' },
   list: { paddingBottom: 48 },
   hint: {
     textAlign: 'center',
-    opacity: 0.55,
     paddingHorizontal: 20,
     paddingBottom: 16,
   },

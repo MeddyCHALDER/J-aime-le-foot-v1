@@ -4,6 +4,7 @@ import { TextInput, Button, Text, Chip } from 'react-native-paper';
 import { Screen } from '../../../ui';
 import { useCreateMatch, useCreateMatchTeam, useAddMatchTeamPlayer } from '../hooks';
 import { useLeagueMembers } from '../../members/hooks';
+import { brand } from '../../../theme/brand';
 
 interface CreateMatchScreenProps {
   leagueId: string;
@@ -139,7 +140,6 @@ export function CreateMatchScreen({
           loading={createMatch.isPending}
           disabled={createMatch.isPending}
           style={styles.button}
-          labelStyle={{ color: '#000' }}
         >
           Continuer · Composer les équipes
         </Button>
@@ -196,7 +196,6 @@ export function CreateMatchScreen({
           onPress={handleAddPlayers}
           loading={addMatchTeamPlayer.isPending}
           style={styles.button}
-          labelStyle={{ color: '#000' }}
         >
           Valider le match
         </Button>
@@ -220,5 +219,5 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   chip: { marginRight: 4, marginBottom: 4 },
   hint: { opacity: 0.7, marginBottom: 12 },
-  error: { color: '#b00020', marginBottom: 12 },
+  error: { color: brand.errorText, backgroundColor: brand.errorBg, padding: 12, borderRadius: 4, marginBottom: 12 },
 });

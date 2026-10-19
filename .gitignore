@@ -14,3 +14,4 @@ web-build/
 *.log
 .idea/
 .vscode/
+.design-backup/

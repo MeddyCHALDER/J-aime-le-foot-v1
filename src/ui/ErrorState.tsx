@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Button, useTheme } from 'react-native-paper';
+import { brand } from '../theme/brand';
 
 interface ErrorStateProps {
   message: string;
@@ -34,7 +35,7 @@ const styles = StyleSheet.create({
   },
   message: {
     textAlign: 'center',
-    color: '#b00020',
+    color: brand.errorText,
   },
   button: {
     marginTop: 16,

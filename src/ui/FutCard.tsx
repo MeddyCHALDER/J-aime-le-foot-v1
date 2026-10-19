@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Card, Text, useTheme } from 'react-native-paper';
+import { brand } from '../theme/brand';
 
 interface FutCardProps {
   playerName: string;
@@ -20,7 +21,7 @@ export function FutCard({
   onPress,
 }: FutCardProps) {
   const theme = useTheme();
-  const accent = '#C9FF00';
+  const accent = brand.lime;
 
   return (
     <Card
@@ -73,7 +74,7 @@ export function FutCard({
 const styles = StyleSheet.create({
   card: {
     marginBottom: 12,
-    borderRadius: 16,
+    borderRadius: 4,
     borderWidth: 2,
     overflow: 'hidden',
   },
@@ -94,7 +95,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   ratingText: {
-    color: '#000000',
+    color: brand.ink,
     fontWeight: '700',
   },
   avatarPlaceholder: {
