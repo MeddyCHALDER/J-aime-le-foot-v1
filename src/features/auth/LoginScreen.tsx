@@ -1,118 +1,102 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, Image } from 'react-native';
-import { TextInput, Button, Text, useTheme } from 'react-native-paper';
+import React, { useRef, useState } from 'react';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { authErrorMessage } from './authErrors';
+import { AuthLayout, authLinkStyles } from './components/AuthLayout';
+import { AuthField } from './components/AuthField';
+import { AuthButton } from './components/AuthButton';
+import { AuthSuccessOverlay } from './components/AuthSuccessOverlay';
 
 interface LoginScreenProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onGoToRegister: () => void;
 }
 
-/** Design d’origine (écran centré FootWorld / Claude), avec branding J’aime le foot. */
 export function LoginScreen({ onLogin, onGoToRegister }: LoginScreenProps) {
-  const theme = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState(0);
+  const [success, setSuccess] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
+
+  const fail = (message: string) => {
+    setError(message);
+    setErrorKey((k) => k + 1);
+  };
 
   const handleSubmit = async () => {
     if (!email.trim() || !password) {
-      setError('Email et mot de passe requis.');
+      fail('Email et mot de passe requis.');
       return;
     }
     setError(null);
     setLoading(true);
     try {
       await onLogin(email.trim(), password);
+      setSuccess(true);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Connexion impossible');
+      fail(authErrorMessage(e, 'Connexion impossible'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <Image
-        source={require('../../../assets/logo.png')}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-      <Text variant="bodyMedium" style={styles.subtitle}>
-        Connexion
-      </Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TextInput
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoComplete="email"
-        mode="outlined"
-        style={styles.input}
-      />
-      <TextInput
-        label="Mot de passe"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoComplete="password"
-        mode="outlined"
-        style={styles.input}
-      />
-      <Button
-        mode="contained"
-        onPress={handleSubmit}
-        loading={loading}
-        disabled={loading}
-        style={styles.button}
-        labelStyle={styles.btnLabel}
+    <View style={{ flex: 1 }}>
+      <AuthLayout
+        line1="Bon retour"
+        line2="sur le terrain"
+        accent="terrain"
+        intro="Connecte-toi pour retrouver tes ligues, matchs et potes."
+        error={error}
+        errorKey={errorKey}
       >
-        Se connecter
-      </Button>
-      <Button mode="text" onPress={onGoToRegister} style={styles.link} textColor="#000">
-        Pas de compte ? S'inscrire
-      </Button>
-    </KeyboardAvoidingView>
+        <AuthField
+          label="Email"
+          nativeID="login-email"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          autoCorrect={false}
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          editable={!loading && !success}
+        />
+        <AuthField
+          ref={passwordRef}
+          label="Mot de passe"
+          nativeID="login-password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          autoComplete="password"
+          returnKeyType="go"
+          onSubmitEditing={handleSubmit}
+          editable={!loading && !success}
+        />
+        <AuthButton
+          label="Se connecter"
+          onPress={handleSubmit}
+          loading={loading}
+          loadingLabel="Connexion…"
+        />
+        <View style={authLinkStyles.wrap}>
+          <Pressable
+            onPress={onGoToRegister}
+            disabled={loading || success}
+            accessibilityRole="link"
+            style={authLinkStyles.link}
+          >
+            <Text style={authLinkStyles.text}>
+              Pas de compte ? <Text style={authLinkStyles.strong}>S'inscrire</Text>
+            </Text>
+          </Pressable>
+        </View>
+      </AuthLayout>
+      {success ? <AuthSuccessOverlay onDone={() => undefined} /> : null}
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  logo: {
-    width: '100%',
-    height: 56,
-    alignSelf: 'center',
-    marginBottom: 16,
-  },
-  subtitle: {
-    textAlign: 'center',
-    marginBottom: 24,
-    opacity: 0.8,
-  },
-  error: {
-    color: '#b00020',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  input: {
-    marginBottom: 12,
-  },
-  button: {
-    marginTop: 8,
-  },
-  btnLabel: {
-    color: '#000000',
-  },
-  link: {
-    marginTop: 16,
-  },
-});

@@ -1,5 +1,10 @@
 # Config minimale pour les Edge Functions
-# Déploie avec : supabase functions deploy send-invite
+# Déploie avec :
+#   supabase functions deploy send-invite
+#   supabase functions deploy media-upload-url
 
 [functions.send-invite]
+verify_jwt = true
+
+[functions.media-upload-url]
 verify_jwt = true

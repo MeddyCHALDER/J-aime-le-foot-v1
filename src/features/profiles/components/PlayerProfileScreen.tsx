@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Text, Button, TextInput, SegmentedButtons } from 'react-native-paper';
+import { Text, Button, TextInput, SegmentedButtons, HelperText } from 'react-native-paper';
 import { Screen, LoadingState, ErrorState, FutCard } from '../../../ui';
 import { useProfile, useUpdateProfile } from '../hooks';
 import { useAuth } from '../../auth/hooks';
+import { pickMediaFile } from '../../media/api';
+import { useUploadMedia } from '../../media/hooks';
 
 interface PlayerProfileScreenProps {
   playerId: string;
@@ -15,12 +17,15 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
   const isOwn = user?.id === playerId;
   const { data: profile, isLoading, error, refetch } = useProfile(playerId);
   const updateProfile = useUpdateProfile();
+  const uploadMedia = useUploadMedia();
 
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState('');
   const [position, setPosition] = useState('');
   const [foot, setFoot] = useState<'left' | 'right' | 'both'>('right');
   const [bio, setBio] = useState('');
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -49,6 +54,34 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
     refetch();
   };
 
+  const changeAvatar = async () => {
+    setAvatarError(null);
+    try {
+      const picked = await pickMediaFile({ accept: 'image/jpeg,image/png,image/webp,image/gif' });
+      if (!picked) return;
+
+      setPreviewUrl(URL.createObjectURL(picked.blob));
+
+      const { publicUrl } = await uploadMedia.mutateAsync({
+        kind: 'avatar',
+        file: picked.blob,
+        contentType: picked.contentType,
+      });
+
+      await updateProfile.mutateAsync({
+        id: playerId,
+        updates: { avatar_url: publicUrl },
+      });
+      setPreviewUrl(publicUrl);
+      refetch();
+    } catch (e) {
+      setPreviewUrl(null);
+      setAvatarError(e instanceof Error ? e.message : 'Upload impossible');
+    }
+  };
+
+  const avatarUrl = previewUrl ?? profile.avatar_url;
+
   return (
     <Screen
       title={isOwn ? 'Mon profil' : profile.display_name}
@@ -59,8 +92,28 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
           playerName={editing ? displayName || profile.display_name : profile.display_name}
           rating={50}
           position={editing ? position || profile.preferred_position : profile.preferred_position}
-          avatarUrl={profile.avatar_url}
+          avatarUrl={avatarUrl}
         />
+
+        {isOwn ? (
+          <>
+            <Button
+              mode="outlined"
+              onPress={changeAvatar}
+              loading={uploadMedia.isPending || updateProfile.isPending}
+              disabled={uploadMedia.isPending}
+              style={styles.button}
+              icon="camera"
+            >
+              Changer la photo
+            </Button>
+            {avatarError ? (
+              <HelperText type="error" visible>
+                {avatarError}
+              </HelperText>
+            ) : null}
+          </>
+        ) : null}
 
         {editing ? (
           <>

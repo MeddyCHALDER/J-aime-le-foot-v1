@@ -6,10 +6,13 @@ import { PaperProvider } from 'react-native-paper';
 import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { queryClient } from './src/lib/queryClient';
 import { registerPwa } from './src/lib/registerPwa';
+import { loadBrandFonts } from './src/lib/brandFonts';
+import './src/lib/motion';
 import { lightTheme, darkTheme } from './src/theme/paperTheme';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 registerPwa();
+loadBrandFonts();
 
 export default function App() {
   const colorScheme = useColorScheme();

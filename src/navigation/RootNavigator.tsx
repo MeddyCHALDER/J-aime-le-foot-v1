@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
@@ -7,6 +7,7 @@ import { useAuth } from '../features/auth/hooks';
 import { signIn, signUp, signOut } from '../features/auth/api';
 import { LoginScreen } from '../features/auth/LoginScreen';
 import { RegisterScreen } from '../features/auth/RegisterScreen';
+import { BrandSplash } from '../features/auth/components/BrandSplash';
 import { LeagueListScreen } from '../features/leagues/components/LeagueListScreen';
 import { CreateLeagueScreen } from '../features/leagues/components/CreateLeagueScreen';
 import { JoinLeagueScreen } from '../features/leagues/components/JoinLeagueScreen';
@@ -20,6 +21,11 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
   const { user, loading } = useAuth();
+  const [splashDone, setSplashDone] = useState(false);
+
+  if (!splashDone) {
+    return <BrandSplash onDone={() => setSplashDone(true)} />;
+  }
 
   if (loading) return null;
 
