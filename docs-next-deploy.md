@@ -65,7 +65,8 @@ l’URI pooler → **Save** → **Manual Deploy → Deploy latest commit**.
 Réglages manuels équivalents :
 
 - **Root Directory** : `backend`
-- **Build Command** : `npm install && npx prisma generate && npx prisma migrate deploy`
+- **Build Command** : `npm install && bash scripts/deploy-db.sh`
+  (gère le cas P3005 : base Supabase déjà remplie par les migrations Expo)
 - **Start Command** : `npm start`
 - **Health Check Path** : `/api/v1/health`
 
