@@ -42,3 +42,18 @@ export function IconProfile({ color, size = 23 }: IconProps) {
     </Svg>
   );
 }
+
+/** Trophée / votes For the Best */
+export function IconVote({ color, size = 23 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden>
+      <Path
+        d="M8 4.5h8v3.2c0 2.4-1.7 4.4-4 4.8-2.3-.4-4-2.4-4-4.8V4.5z"
+        stroke={color}
+        {...stroke}
+      />
+      <Path d="M8 5.2H5.8A2.3 2.3 0 0 1 5.8 9.8H8M16 5.2h2.2a2.3 2.3 0 0 1 0 4.6H16" stroke={color} {...stroke} />
+      <Path d="M12 12.5v3.2M9 20.5h6M12 15.7h0a2.4 2.4 0 0 0-2.4 2.4V20.5h4.8v-2.4a2.4 2.4 0 0 0-2.4-2.4z" stroke={color} {...stroke} />
+    </Svg>
+  );
+}

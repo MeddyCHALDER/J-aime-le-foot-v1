@@ -3,9 +3,9 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts } from '../theme/brand';
 import { useAppTheme } from '../theme/ThemeContext';
-import { IconMatch, IconProfile } from './TabIcons';
+import { IconMatch, IconProfile, IconVote } from './TabIcons';
 
-export type PlayerTab = 'matches' | 'profile';
+export type PlayerTab = 'matches' | 'votes' | 'profile';
 
 type TabDef = {
   id: PlayerTab;
@@ -15,6 +15,7 @@ type TabDef = {
 
 const TABS: TabDef[] = [
   { id: 'matches', label: 'Matchs', Icon: IconMatch },
+  { id: 'votes', label: 'Votes', Icon: IconVote },
   { id: 'profile', label: 'Profil', Icon: IconProfile },
 ];
 

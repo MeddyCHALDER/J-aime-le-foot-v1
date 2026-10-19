@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { TabBar, useTabBarHeight, type PlayerTab } from '../../components/TabBar';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { MatchesTabScreen } from './MatchesTabScreen';
+import { VotesTabScreen } from './VotesTabScreen';
 import { ProfileTabScreen } from './ProfileTabScreen';
 
 interface MainTabsScreenProps {
@@ -44,6 +45,7 @@ export function MainTabsScreen({
             onCreateMatch={onCreateMatch}
           />
         ) : null}
+        {tab === 'votes' ? <VotesTabScreen /> : null}
         {tab === 'profile' ? (
           <ProfileTabScreen
             onEditProfile={onEditProfile}
