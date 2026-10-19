@@ -1,0 +1,5 @@
+# Config minimale pour les Edge Functions
+# Déploie avec : supabase functions deploy send-invite
+
+[functions.send-invite]
+verify_jwt = true

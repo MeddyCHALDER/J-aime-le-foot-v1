@@ -1,0 +1,26 @@
+{
+  "short_name": "J'aime le foot",
+  "name": "J'aime le foot",
+  "description": "Foot amateur entre potes — ligues, matchs, classements joueurs",
+  "icons": [
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#C9FF00",
+  "background_color": "#ffffff",
+  "lang": "fr"
+}
