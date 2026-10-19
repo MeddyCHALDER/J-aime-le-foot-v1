@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { TabBar, useTabBarHeight, type PlayerTab } from '../../components/TabBar';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { MatchesTabScreen } from './MatchesTabScreen';
@@ -24,6 +24,10 @@ export function MainTabsScreen({
   const [tab, setTab] = useState<PlayerTab>('matches');
   const { tokens } = useAppTheme();
   const tabBarHeight = useTabBarHeight();
+  // Web mobile : dock fixé au bas de l'écran (pas du conteneur), insensible aux écarts de hauteur iOS.
+  // Sur grand écran, il reste dans le cadre téléphone centré de l'AppShell.
+  const { width } = useWindowDimensions();
+  const fixedDock = Platform.OS === 'web' && width < 640;
 
   return (
     <View style={[styles.root, { backgroundColor: tokens.ink }]}>
@@ -54,7 +58,7 @@ export function MainTabsScreen({
           />
         ) : null}
       </View>
-      <View style={styles.tabDock} pointerEvents="box-none">
+      <View style={[styles.tabDock, fixedDock && styles.tabDockFixed]} pointerEvents="box-none">
         <TabBar active={tab} onChange={setTab} />
       </View>
     </View>
@@ -78,5 +82,10 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 20,
+  },
+  tabDockFixed: {
+    position: 'fixed' as 'absolute',
+    maxWidth: 440,
+    marginHorizontal: 'auto',
   },
 });

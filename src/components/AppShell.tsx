@@ -4,7 +4,7 @@ import { brand } from '../theme/brand';
 
 /**
  * Coquille téléphone (max 440px), comme frontend AppShell.
- * Sur mobile : plein écran (100dvh). Sur grand écran web : cadre arrondi centré.
+ * Sur mobile : plein écran (100 % du body, lui-même fixé sur tout l'écran). Sur grand écran web : cadre arrondi centré.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { width, height } = useWindowDimensions();
@@ -47,9 +47,6 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    ...(Platform.OS === 'web'
-      ? ({ minHeight: '100dvh', height: '100dvh' } as object)
-      : null),
   },
   phone: {
     width: '100%',
@@ -61,8 +58,5 @@ const styles = StyleSheet.create({
     flex: 1,
     height: '100%',
     maxHeight: '100%',
-    ...(Platform.OS === 'web'
-      ? ({ minHeight: '100dvh', height: '100dvh' } as object)
-      : null),
   },
 });

@@ -29,8 +29,10 @@
       body,
       #root {
         width: 100%;
+        /* Pas de 100dvh : en PWA iOS (barre d'état translucide) il est plus court que l'écran
+           de la hauteur de la barre d'état, ce qui décolle la TabBar du bas.
+           body est en position: fixed; inset: 0 et couvre déjà tout l'écran. */
         height: 100%;
-        height: 100dvh;
         margin: 0;
         padding: 0;
         /* Couleur « ink » de la marque : Safari iOS teinte la zone de la barre d'état
