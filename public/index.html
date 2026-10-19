@@ -10,6 +10,7 @@
     <title>J'aime le foot</title>
     <meta name="description" content="Foot amateur entre potes — ligues, matchs, classements joueurs" />
     <meta name="theme-color" content="#0B0F0D" />
+    <meta name="color-scheme" content="dark" />
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
@@ -27,7 +28,10 @@
         height: 100%;
         margin: 0;
         padding: 0;
-        background-color: #ffffff;
+        /* Couleur « ink » de la marque : Safari iOS teinte la zone de la barre d'état
+           (et derrière sa barre d'outils) avec le fond de page, avant même le JS. */
+        background-color: #0b0f0d;
+        color-scheme: dark;
       }
       /* Empêche le bounce Safari sur mobile : la page ne défile jamais,
          seuls les écrans de l'app défilent à l'intérieur. */
