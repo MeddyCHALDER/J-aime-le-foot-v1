@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { PaperProvider } from 'react-native-paper';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Platform, StyleSheet, useColorScheme, View } from 'react-native';
 import { queryClient } from './src/lib/queryClient';
 import { registerPwa } from './src/lib/registerPwa';
@@ -19,18 +20,20 @@ export default function App() {
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <PaperProvider theme={theme}>
-        <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-          <View style={styles.shell}>
-            <NavigationContainer>
-              <StatusBar style="auto" />
-              <RootNavigator />
-            </NavigationContainer>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <PaperProvider theme={theme}>
+          <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
+            <View style={styles.shell}>
+              <NavigationContainer>
+                <StatusBar style="auto" />
+                <RootNavigator />
+              </NavigationContainer>
+            </View>
           </View>
-        </View>
-      </PaperProvider>
-    </QueryClientProvider>
+        </PaperProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }
 

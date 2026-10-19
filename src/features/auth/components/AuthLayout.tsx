@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { brand, fonts, useNativeDriver } from '../../../theme/brand';
 import { dur } from '../../../lib/motion';
 import { AuthBackdrop } from './AuthBackdrop';
@@ -39,6 +40,14 @@ export function AuthLayout({
   children,
 }: AuthLayoutProps) {
   const shake = useRef(new Animated.Value(0)).current;
+  // Encoche, barre d'état et barre d'accueil : le contenu reste dans la zone sûre.
+  const insets = useSafeAreaInsets();
+  const safePadding = {
+    paddingTop: Math.max(64, insets.top + 28),
+    paddingBottom: Math.max(40, insets.bottom + 24),
+    paddingLeft: 28 + insets.left,
+    paddingRight: 28 + insets.right,
+  };
 
   useEffect(() => {
     if (!errorKey) return;
@@ -71,7 +80,7 @@ export function AuthLayout({
       <StatusBar style="light" />
       <AuthBackdrop />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, safePadding]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -128,7 +137,7 @@ export function AuthLayout({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: brand.ink, overflow: 'hidden' },
-  scroll: { flexGrow: 1, paddingTop: 64, paddingHorizontal: 28, paddingBottom: 40 },
+  scroll: { flexGrow: 1 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   mark: { width: 40, height: 40 },
   word: { width: 148, height: 22 },
