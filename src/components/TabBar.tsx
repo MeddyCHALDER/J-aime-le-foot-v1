@@ -19,19 +19,48 @@ const TABS: TabDef[] = [
   { id: 'profile', label: 'Profil', Icon: IconProfile },
 ];
 
+/** Hauteur zone onglets (icône + label), comme le Next. */
+export const TAB_ITEM_HEIGHT = 58;
+/** Padding design sous les labels, hors safe-area. */
+export const TAB_PAD_EXTRA = 18;
+
+/** Hauteur totale réservée au dock (pour padding du contenu). */
+export function useTabBarHeight() {
+  const insets = useSafeAreaInsets();
+  if (Platform.OS === 'web') {
+    // Sur le web on s’appuie sur env(safe-area) en CSS — estimation pour le layout.
+    const cssInset =
+      typeof window !== 'undefined' && typeof getComputedStyle !== 'undefined'
+        ? parseFloat(
+            getComputedStyle(document.documentElement).getPropertyValue('--sat-bottom') || '0'
+          ) || 0
+        : 0;
+    // Fallback raisonnable iPhone home indicator si la var CSS n’est pas encore là
+    const safe = cssInset > 0 ? cssInset : 0;
+    return TAB_ITEM_HEIGHT + TAB_PAD_EXTRA + safe;
+  }
+  return TAB_ITEM_HEIGHT + TAB_PAD_EXTRA + insets.bottom;
+}
+
 interface TabBarProps {
   active: PlayerTab;
   onChange: (tab: PlayerTab) => void;
 }
 
 /**
- * Barre V1 alignée sur frontend TabBar :
- * hauteur 76 + safe-area, zone onglets 58px, pictos trait, blur web.
+ * Barre V1 = Next : zone 58px + paddingBottom (18 + safe-area).
+ * Pas de height fixe + padding (sur RN Web ça double le vide sous les labels).
  */
 export function TabBar({ active, onChange }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const { tokens } = useAppTheme();
-  const bottomPad = 18 + insets.bottom;
+
+  const bottomPadStyle =
+    Platform.OS === 'web'
+      ? ({
+          paddingBottom: `calc(${TAB_PAD_EXTRA}px + env(safe-area-inset-bottom, 0px))`,
+        } as object)
+      : { paddingBottom: TAB_PAD_EXTRA + insets.bottom };
 
   return (
     <View
@@ -40,15 +69,14 @@ export function TabBar({ active, onChange }: TabBarProps) {
         {
           backgroundColor: tokens.tabbar,
           borderTopColor: tokens.line,
-          height: 58 + bottomPad,
-          paddingBottom: bottomPad,
-          ...(Platform.OS === 'web'
-            ? ({
-                backdropFilter: 'blur(18px)',
-                WebkitBackdropFilter: 'blur(18px)',
-              } as object)
-            : null),
         },
+        bottomPadStyle,
+        Platform.OS === 'web'
+          ? ({
+              backdropFilter: 'blur(18px)',
+              WebkitBackdropFilter: 'blur(18px)',
+            } as object)
+          : null,
       ]}
       accessibilityRole="tablist"
       accessibilityLabel="Navigation principale"
@@ -97,7 +125,7 @@ const styles = StyleSheet.create({
   },
   item: {
     flex: 1,
-    height: 58,
+    height: TAB_ITEM_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,

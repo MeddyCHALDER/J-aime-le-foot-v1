@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TabBar, type PlayerTab } from '../../components/TabBar';
+import { Platform, StyleSheet, View } from 'react-native';
+import { TabBar, useTabBarHeight, type PlayerTab } from '../../components/TabBar';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { MatchesTabScreen } from './MatchesTabScreen';
 import { CardTabScreen } from './CardTabScreen';
@@ -24,13 +23,20 @@ export function MainTabsScreen({
 }: MainTabsScreenProps) {
   const [tab, setTab] = useState<PlayerTab>('matches');
   const { tokens } = useAppTheme();
-  const insets = useSafeAreaInsets();
-  // Même formule que TabBar : 58 (onglets) + 18 + safe-area
-  const tabBarHeight = 58 + 18 + insets.bottom;
+  const tabBarHeight = useTabBarHeight();
 
   return (
     <View style={[styles.root, { backgroundColor: tokens.ink }]}>
-      <View style={[styles.body, { paddingBottom: tabBarHeight }]}>
+      <View
+        style={[
+          styles.body,
+          Platform.OS === 'web'
+            ? ({
+                paddingBottom: `calc(76px + env(safe-area-inset-bottom, 0px))`,
+              } as object)
+            : { paddingBottom: tabBarHeight },
+        ]}
+      >
         {tab === 'matches' ? (
           <MatchesTabScreen
             onMatchPress={onMatchPress}
@@ -48,7 +54,7 @@ export function MainTabsScreen({
           />
         ) : null}
       </View>
-      <View style={styles.tabDock}>
+      <View style={styles.tabDock} pointerEvents="box-none">
         <TabBar active={tab} onChange={setTab} />
       </View>
     </View>
@@ -60,7 +66,6 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
-    position: 'relative',
   },
   body: {
     flex: 1,
