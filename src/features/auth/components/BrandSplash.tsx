@@ -3,7 +3,6 @@ import { Animated, Image, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { brand, easeIn, easeInOut, easeOut, useNativeDriver } from '../../../theme/brand';
 import { dur } from '../../../lib/motion';
-import { usePageBackground } from '../../../lib/usePageBackground';
 
 const MARK = 112;
 const WORD_W = 236;
@@ -25,7 +24,6 @@ export function BrandSplash({ onDone }: BrandSplashProps) {
   const flash = useRef(new Animated.Value(0)).current;
   const sweep = useRef(new Animated.Value(0)).current;
   const out = useRef(new Animated.Value(0)).current;
-  usePageBackground(brand.ink);
 
   useEffect(() => {
     const t = (v: Animated.Value, delay: number, duration: number, easing = easeOut, toValue = 1) =>

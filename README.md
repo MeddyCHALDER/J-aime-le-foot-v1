@@ -59,10 +59,18 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=votre_anon_key
 
 > Les valeurs `RESEND_*` / `APP_URL` du fichier `.env` local ne sont **pas** lues par Expo : elles doivent être dans les **secrets** Supabase Edge Functions.
 
-### 2) Emails Auth Supabase (optionnel)
+### 2) Mot de passe oublié
 
-Pour les mails de confirmation / reset password via Resend :  
-[Intégration Resend ↔ Supabase](https://resend.com/docs/knowledge-base/getting-started-with-resend-and-supabase) (SMTP custom dans Auth).
+Dans l’app : **Connexion → Mot de passe oublié ?**
+
+Dans **Supabase → Authentication → URL Configuration** :
+- **Site URL** = `https://www.jaimelefoot.app`
+- **Redirect URLs** : ajoute `https://www.jaimelefoot.app` et `http://localhost:8081`
+
+Côté Vercel, ajoute aussi `EXPO_PUBLIC_APP_URL=https://www.jaimelefoot.app`.
+
+Pour envoyer ces mails via Resend (SMTP Auth) :  
+[Intégration Resend ↔ Supabase](https://resend.com/docs/knowledge-base/getting-started-with-resend-and-supabase).
 
 ## Médias avec Cloudflare R2
 

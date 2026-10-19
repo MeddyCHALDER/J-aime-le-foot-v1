@@ -5,7 +5,7 @@ module.exports = {
   slug: 'jaime-le-foot',
   version: '1.0.0',
   orientation: 'portrait',
-  userInterfaceStyle: 'dark',
+  userInterfaceStyle: 'automatic',
   scheme: 'jaime-le-foot',
   icon: './assets/icon.png',
   splash: {
@@ -21,13 +21,14 @@ module.exports = {
     name: "J'aime le foot",
     shortName: "J'aime le foot",
     description: 'Foot amateur entre potes — ligues, matchs, classements joueurs',
-    themeColor: '#0B0F0D',
-    backgroundColor: '#0B0F0D',
+    themeColor: '#C9FF00',
+    backgroundColor: '#ffffff',
     display: 'standalone',
     lang: 'fr',
   },
   extra: {
     supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
     supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '',
+    appUrl: process.env.EXPO_PUBLIC_APP_URL ?? 'https://www.jaimelefoot.app',
   },
 };

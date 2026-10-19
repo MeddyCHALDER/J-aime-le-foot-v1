@@ -9,9 +9,10 @@ import { AuthSuccessOverlay } from './components/AuthSuccessOverlay';
 interface LoginScreenProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onGoToRegister: () => void;
+  onGoToForgotPassword: () => void;
 }
 
-export function LoginScreen({ onLogin, onGoToRegister }: LoginScreenProps) {
+export function LoginScreen({ onLogin, onGoToRegister, onGoToForgotPassword }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -77,6 +78,18 @@ export function LoginScreen({ onLogin, onGoToRegister }: LoginScreenProps) {
           onSubmitEditing={handleSubmit}
           editable={!loading && !success}
         />
+        <View style={[authLinkStyles.wrap, { alignItems: 'flex-end', marginTop: -4 }]}>
+          <Pressable
+            onPress={onGoToForgotPassword}
+            disabled={loading || success}
+            accessibilityRole="link"
+            style={authLinkStyles.link}
+          >
+            <Text style={authLinkStyles.text}>
+              Mot de passe <Text style={authLinkStyles.strong}>oublié ?</Text>
+            </Text>
+          </Pressable>
+        </View>
         <AuthButton
           label="Se connecter"
           onPress={handleSubmit}

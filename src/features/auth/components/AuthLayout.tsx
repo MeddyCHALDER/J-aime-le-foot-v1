@@ -13,7 +13,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { brand, fonts, useNativeDriver } from '../../../theme/brand';
 import { dur } from '../../../lib/motion';
-import { usePageBackground } from '../../../lib/usePageBackground';
 import { AuthBackdrop } from './AuthBackdrop';
 import { Reveal } from './Reveal';
 
@@ -43,7 +42,6 @@ export function AuthLayout({
   const shake = useRef(new Animated.Value(0)).current;
   // Encoche, barre d'état et barre d'accueil : le contenu reste dans la zone sûre.
   const insets = useSafeAreaInsets();
-  usePageBackground(brand.ink);
   const safePadding = {
     paddingTop: Math.max(64, insets.top + 28),
     paddingBottom: Math.max(40, insets.bottom + 24),

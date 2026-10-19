@@ -6,6 +6,7 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   useEffect(() => {
     getSession().then((s) => {
@@ -16,7 +17,13 @@ export function useAuth() {
 
     const {
       data: { subscription },
-    } = onAuthStateChange((_event, s) => {
+    } = onAuthStateChange((event, s) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true);
+      }
+      if (event === 'SIGNED_OUT') {
+        setPasswordRecovery(false);
+      }
       setSession(s as Session | null);
       setUser((s as Session | null)?.user ?? null);
     });
@@ -24,5 +31,12 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  return { session, user, loading, isAuthenticated: !!user };
+  return {
+    session,
+    user,
+    loading,
+    isAuthenticated: !!user,
+    passwordRecovery,
+    clearPasswordRecovery: () => setPasswordRecovery(false),
+  };
 }

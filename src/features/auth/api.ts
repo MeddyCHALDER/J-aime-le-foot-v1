@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase';
+import { getAppUrl, supabase } from '../../lib/supabase';
 
 export async function signUp(email: string, password: string, displayName?: string) {
   const { data, error } = await supabase.auth.signUp({
@@ -19,6 +19,21 @@ export async function signIn(email: string, password: string) {
 export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
+}
+
+/** Envoie l’email de réinitialisation (lien → APP_URL). */
+export async function requestPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo: `${getAppUrl()}/`,
+  });
+  if (error) throw error;
+}
+
+/** Définit le nouveau mot de passe après clic sur le lien de recovery. */
+export async function updatePassword(password: string) {
+  const { data, error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+  return data.user;
 }
 
 export function getSession() {

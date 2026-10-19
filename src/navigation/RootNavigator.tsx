@@ -7,6 +7,8 @@ import { useAuth } from '../features/auth/hooks';
 import { signIn, signUp, signOut } from '../features/auth/api';
 import { LoginScreen } from '../features/auth/LoginScreen';
 import { RegisterScreen } from '../features/auth/RegisterScreen';
+import { ForgotPasswordScreen } from '../features/auth/ForgotPasswordScreen';
+import { UpdatePasswordScreen } from '../features/auth/UpdatePasswordScreen';
 import { BrandSplash } from '../features/auth/components/BrandSplash';
 import { LeagueListScreen } from '../features/leagues/components/LeagueListScreen';
 import { CreateLeagueScreen } from '../features/leagues/components/CreateLeagueScreen';
@@ -16,12 +18,11 @@ import { CreateSeasonScreen } from '../features/leagues/components/CreateSeasonS
 import { CreateMatchScreen } from '../features/matches/components/CreateMatchScreen';
 import { MatchDetailScreen } from '../features/matches/components/MatchDetailScreen';
 import { PlayerProfileScreen } from '../features/profiles/components/PlayerProfileScreen';
-import { brand, fonts } from '../theme/brand';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { user, loading } = useAuth();
+  const { user, loading, passwordRecovery, clearPasswordRecovery } = useAuth();
   const [splashDone, setSplashDone] = useState(false);
 
   if (!splashDone) {
@@ -30,20 +31,21 @@ export function RootNavigator() {
 
   if (loading) return null;
 
+  if (passwordRecovery) {
+    return (
+      <UpdatePasswordScreen
+        onDone={() => {
+          clearPasswordRecovery();
+        }}
+      />
+    );
+  }
+
   return (
     <Stack.Navigator
       key={user ? 'app' : 'auth'}
       initialRouteName={user ? 'Main' : 'Login'}
-      screenOptions={{
-        headerShown: true,
-        headerStyle: { backgroundColor: brand.ink },
-        headerTintColor: brand.text,
-        headerShadowVisible: false,
-        headerTitleAlign: 'center',
-        headerTitleStyle: styles.headerTitle,
-        headerBackTitle: 'Retour',
-        contentStyle: { backgroundColor: brand.ink },
-      }}
+      screenOptions={{ headerShown: true }}
     >
       <Stack.Screen name="Login" options={{ headerShown: false }}>
         {(props) => (
@@ -52,6 +54,7 @@ export function RootNavigator() {
               await signIn(email, password);
             }}
             onGoToRegister={() => props.navigation.navigate('Register')}
+            onGoToForgotPassword={() => props.navigation.navigate('ForgotPassword')}
           />
         )}
       </Stack.Screen>
@@ -61,6 +64,14 @@ export function RootNavigator() {
             onRegister={async (email, password, displayName) => {
               await signUp(email, password, displayName);
             }}
+            onGoToLogin={() => props.navigation.navigate('Login')}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="ForgotPassword" options={{ headerShown: false }}>
+        {(props) => (
+          <ForgotPasswordScreen
+            initialEmail={props.route.params?.email}
             onGoToLogin={() => props.navigation.navigate('Login')}
           />
         )}
@@ -172,15 +183,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   headerButtonText: {
-    color: brand.muted,
-    fontFamily: fonts.body,
+    color: '#000000',
     fontWeight: '600',
-  },
-  headerTitle: {
-    fontFamily: fonts.display,
-    fontStyle: 'italic',
-    fontWeight: '700',
-    fontSize: 18,
-    textTransform: 'uppercase',
   },
 });
