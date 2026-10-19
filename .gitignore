@@ -18,4 +18,5 @@ backend/src/uploads/*
 .DS_Store
 *.log
 .idea/
-.vscode/public/build-id.json
+.vscode/
+public/build-id.json
