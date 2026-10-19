@@ -1,13 +1,15 @@
-// Schéma Prisma pour "J'aime le Foot"
-// À utiliser avec une base PostgreSQL
+// Schéma Prisma Express — isolé dans le schéma Postgres "jlf"
+// pour coexister avec les tables Expo (public) et auth.users (Supabase).
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["jlf"]
 }
 
 model User {
@@ -33,7 +35,9 @@ model User {
   notifications    Notification[]
   createdClubMatches ClubMatch[] @relation("ClubMatchCreator")
   clubMatchRegistrations ClubMatchRegistration[] @relation("ClubMatchRegistrationUser")
+  @@schema("jlf")
 }
+
 
 model PlayerProfile {
   id           String       @id @default(uuid())
@@ -59,7 +63,9 @@ model PlayerProfile {
   matchStats      PlayerMatchStat[]
   clubMatchRegistrations ClubMatchRegistration[]
   clubMatchStats  ClubMatchStat[]
+  @@schema("jlf")
 }
+
 
 model PlayerCard {
   id              String         @id @default(uuid())
@@ -75,7 +81,9 @@ model PlayerCard {
   createdAt       DateTime       @default(now())
 
   playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
+  @@schema("jlf")
 }
+
 
 model Post {
   id          String        @id @default(uuid())
@@ -92,7 +100,9 @@ model Post {
   comments  PostComment[]
   challengeEntries ChallengeEntry[]
   awardNominations AwardNomination[]
+  @@schema("jlf")
 }
+
 
 model PostLike {
   id        String   @id @default(uuid())
@@ -104,7 +114,9 @@ model PostLike {
   user User @relation(fields: [userId], references: [id])
 
   @@unique([postId, userId])
+  @@schema("jlf")
 }
+
 
 model PostComment {
   id        String   @id @default(uuid())
@@ -115,7 +127,9 @@ model PostComment {
 
   post Post @relation(fields: [postId], references: [id])
   user User @relation(fields: [userId], references: [id])
+  @@schema("jlf")
 }
+
 
 model Challenge {
   id          String           @id @default(uuid())
@@ -128,7 +142,9 @@ model Challenge {
 
   createdBy User             @relation(fields: [createdById], references: [id])
   entries   ChallengeEntry[]
+  @@schema("jlf")
 }
+
 
 model ChallengeEntry {
   id          String    @id @default(uuid())
@@ -140,7 +156,9 @@ model ChallengeEntry {
   challenge Challenge @relation(fields: [challengeId], references: [id])
   post      Post      @relation(fields: [postId], references: [id])
   user      User      @relation(fields: [userId], references: [id])
+  @@schema("jlf")
 }
+
 
 model Team {
   id       String       @id @default(uuid())
@@ -154,7 +172,9 @@ model Team {
   awayMatches     Match[]       @relation("AwayTeam")
   clubMatches     ClubMatch[]
   clubMatchStats  ClubMatchStat[]
+  @@schema("jlf")
 }
+
 
 model TeamMember {
   id              String         @id @default(uuid())
@@ -164,7 +184,9 @@ model TeamMember {
 
   team          Team          @relation(fields: [teamId], references: [id])
   playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
+  @@schema("jlf")
 }
+
 
 model Tournament {
   id         String          @id @default(uuid())
@@ -180,7 +202,9 @@ model Tournament {
   awards    Award[]
   playerStats PlayerMatchStat[]
   clubMatches ClubMatch[]
+  @@schema("jlf")
 }
+
 
 model TournamentTeam {
   id           String     @id @default(uuid())
@@ -189,7 +213,9 @@ model TournamentTeam {
 
   tournament Tournament @relation(fields: [tournamentId], references: [id])
   team       Team       @relation(fields: [teamId], references: [id])
+  @@schema("jlf")
 }
+
 
 model Match {
   id            String    @id @default(uuid())
@@ -206,7 +232,9 @@ model Match {
   homeTeam   Team       @relation("HomeTeam", fields: [homeTeamId], references: [id])
   awayTeam   Team       @relation("AwayTeam", fields: [awayTeamId], references: [id])
   playerStats  PlayerMatchStat[]
+  @@schema("jlf")
 }
+
 
 model PlayerMatchStat {
   id            String    @id @default(uuid())
@@ -228,13 +256,17 @@ model PlayerMatchStat {
   tournament    Tournament    @relation(fields: [tournamentId], references: [id])
 
   @@unique([matchId, playerProfileId])
+  @@schema("jlf")
 }
+
 
 enum MatchResult {
   WIN
   DRAW
   LOSS
+  @@schema("jlf")
 }
+
 
 model Award {
   id           String        @id @default(uuid())
@@ -247,7 +279,9 @@ model Award {
   tournament  Tournament?      @relation(fields: [tournamentId], references: [id])
   nominations AwardNomination[]
   votes       AwardVote[]
+  @@schema("jlf")
 }
+
 
 model AwardNomination {
   id              String         @id @default(uuid())
@@ -260,7 +294,9 @@ model AwardNomination {
   playerProfile PlayerProfile @relation(fields: [playerProfileId], references: [id])
   post          Post?         @relation(fields: [postId], references: [id])
   votes         AwardVote[]
+  @@schema("jlf")
 }
+
 
 model AwardVote {
   id           String          @id @default(uuid())
@@ -274,23 +310,31 @@ model AwardVote {
   nomination AwardNomination @relation(fields: [nominationId], references: [id])
 
   @@unique([awardId, userId])
+  @@schema("jlf")
 }
+
 
 enum UserRole {
   PLAYER
   COACH
   ADMIN
+  @@schema("jlf")
 }
+
 
 enum PostType {
   VIDEO
   TEXT
+  @@schema("jlf")
 }
+
 
 enum TournamentType {
   CUP
   LEAGUE
+  @@schema("jlf")
 }
+
 
 enum AwardType {
   BALLON_DOR
@@ -298,7 +342,9 @@ enum AwardType {
   PICHICHI
   GOLDEN_GLOVE
   BEST_YOUNG
+  @@schema("jlf")
 }
+
 
 model PrivateMessage {
   id        String   @id @default(uuid())
@@ -314,7 +360,9 @@ model PrivateMessage {
 
   @@index([senderId, receiverId])
   @@index([receiverId, read])
+  @@schema("jlf")
 }
+
 
 model Notification {
   id        String           @id @default(uuid())
@@ -331,7 +379,9 @@ model Notification {
 
   @@index([userId, read])
   @@index([userId, createdAt])
+  @@schema("jlf")
 }
+
 
 enum NotificationType {
   POST_LIKE
@@ -341,7 +391,9 @@ enum NotificationType {
   CHALLENGE_NEW
   AWARD_NOMINATION
   MATCH_RESULT
+  @@schema("jlf")
 }
+
 
 model ClubMatch {
   id          String    @id @default(uuid())
@@ -364,14 +416,18 @@ model ClubMatch {
   @@index([teamId, matchDate])
   @@index([status])
   @@index([tournamentId])
+  @@schema("jlf")
 }
+
 
 enum ClubMatchStatus {
   OPEN        // Inscriptions ouvertes
   CLOSED      // Inscriptions fermées
   IN_PROGRESS // Match en cours
   COMPLETED   // Match terminé
+  @@schema("jlf")
 }
+
 
 model ClubMatchRegistration {
   id            String    @id @default(uuid())
@@ -386,7 +442,9 @@ model ClubMatchRegistration {
 
   @@unique([clubMatchId, playerProfileId])
   @@index([clubMatchId])
+  @@schema("jlf")
 }
+
 
 model ClubMatchStat {
   id            String    @id @default(uuid())
@@ -407,6 +465,6 @@ model ClubMatchStat {
   team          Team?         @relation(fields: [teamId], references: [id])
 
   @@unique([clubMatchId, playerProfileId])
+  @@schema("jlf")
 }
-
 

@@ -66,7 +66,7 @@ Réglages manuels équivalents :
 
 - **Root Directory** : `backend`
 - **Build Command** : `npm install && bash scripts/deploy-db.sh`
-  (gère le cas P3005 : base Supabase déjà remplie par les migrations Expo)
+  (tables Express dans le schéma Postgres `jlf`, à côté des tables Expo `public`)
 - **Start Command** : `npm start`
 - **Health Check Path** : `/api/v1/health`
 
