@@ -1,13 +1,8 @@
-import { MD3DarkTheme, configureFonts } from 'react-native-paper';
+import { MD3DarkTheme, MD3LightTheme, configureFonts } from 'react-native-paper';
 import type { MD3Theme } from 'react-native-paper';
 import type { MD3Type } from 'react-native-paper/lib/typescript/types';
-import { brand, fonts } from './brand';
+import { brand, brandLight, fonts, type BrandTokens } from './brand';
 
-/**
- * Thème unique de l'app, aligné sur la charte des écrans d'entrée :
- * fond terrain sombre, accent lime, Chakra Petch italique pour les titres, Barlow pour le texte.
- */
-// fontStyle n'existe pas dans le type MD3 mais est bien appliqué par Text.
 const display = { fontFamily: fonts.display ?? 'System', fontWeight: '700', fontStyle: 'italic' } as Partial<MD3Type>;
 const body: Partial<MD3Type> = { fontFamily: fonts.body ?? 'System' };
 
@@ -31,56 +26,58 @@ const fontConfig = configureFonts({
   },
 });
 
-export const appTheme: MD3Theme = {
-  ...MD3DarkTheme,
-  dark: true,
-  // Angles quasi vifs comme sur les écrans d'entrée (les boutons MD3 valent 5 × roundness).
-  roundness: 1,
-  colors: {
-    ...MD3DarkTheme.colors,
-    primary: brand.lime,
-    onPrimary: brand.ink,
-    primaryContainer: brand.infoBg,
-    onPrimaryContainer: brand.infoText,
-    secondary: brand.lime,
-    onSecondary: brand.ink,
-    secondaryContainer: brand.infoBg,
-    onSecondaryContainer: brand.lime,
-    tertiary: brand.lime,
-    onTertiary: brand.ink,
-    tertiaryContainer: brand.infoBg,
-    onTertiaryContainer: brand.infoText,
-    background: brand.ink,
-    onBackground: brand.text,
-    surface: brand.field,
-    onSurface: brand.text,
-    surfaceVariant: brand.fieldFocus,
-    onSurfaceVariant: brand.muted,
-    surfaceDisabled: 'rgba(243,246,241,0.12)',
-    onSurfaceDisabled: 'rgba(243,246,241,0.38)',
-    inverseSurface: brand.text,
-    inverseOnSurface: brand.ink,
-    inversePrimary: brand.ink,
-    outline: brand.line,
-    outlineVariant: brand.line,
-    error: brand.errorText,
-    onError: brand.ink,
-    errorContainer: brand.errorBg,
-    onErrorContainer: brand.errorText,
-    backdrop: 'rgba(11,15,13,0.7)',
-    elevation: {
-      level0: 'transparent',
-      level1: brand.field,
-      level2: brand.fieldFocus,
-      level3: brand.fieldFocus,
-      level4: brand.fieldFocus,
-      level5: brand.fieldFocus,
+function buildTheme(tokens: BrandTokens, base: MD3Theme, dark: boolean): MD3Theme {
+  return {
+    ...base,
+    dark,
+    roundness: 1,
+    colors: {
+      ...base.colors,
+      primary: tokens.lime,
+      onPrimary: tokens.onLime,
+      primaryContainer: tokens.infoBg,
+      onPrimaryContainer: tokens.infoText,
+      secondary: tokens.lime,
+      onSecondary: tokens.onLime,
+      secondaryContainer: tokens.infoBg,
+      onSecondaryContainer: tokens.lime,
+      tertiary: tokens.lime,
+      onTertiary: tokens.onLime,
+      tertiaryContainer: tokens.infoBg,
+      onTertiaryContainer: tokens.infoText,
+      background: tokens.ink,
+      onBackground: tokens.text,
+      surface: tokens.surface,
+      onSurface: tokens.text,
+      surfaceVariant: tokens.surface2,
+      onSurfaceVariant: tokens.muted,
+      surfaceDisabled: dark ? 'rgba(242,244,238,0.12)' : 'rgba(27,29,25,0.12)',
+      onSurfaceDisabled: tokens.muted2,
+      inverseSurface: tokens.text,
+      inverseOnSurface: tokens.ink,
+      inversePrimary: tokens.onLime,
+      outline: tokens.line,
+      outlineVariant: tokens.line,
+      error: tokens.errorText,
+      onError: tokens.onLime,
+      errorContainer: tokens.errorBg,
+      onErrorContainer: tokens.errorText,
+      backdrop: dark ? 'rgba(14,16,13,0.7)' : 'rgba(0,0,0,0.4)',
+      elevation: {
+        level0: 'transparent',
+        level1: tokens.surface,
+        level2: tokens.surface2,
+        level3: tokens.surface2,
+        level4: tokens.surface2,
+        level5: tokens.surface2,
+      },
     },
-  },
-  // `default` sert au <Text> sans variante ; configureFonts ne permet pas de le fixer avec les variantes.
-  fonts: { ...fontConfig, default: { ...fontConfig.default, fontFamily: body.fontFamily ?? 'System' } },
-};
+    fonts: { ...fontConfig, default: { ...fontConfig.default, fontFamily: body.fontFamily ?? 'System' } },
+  };
+}
 
-/** Conservés pour compatibilité : l'app n'a plus qu'un thème sombre. */
-export const darkTheme = appTheme;
-export const lightTheme = appTheme;
+export const darkTheme = buildTheme(brand, MD3DarkTheme, true);
+export const lightTheme = buildTheme(brandLight, MD3LightTheme, false);
+
+/** Défaut : sombre (charte V1). */
+export const appTheme = darkTheme;

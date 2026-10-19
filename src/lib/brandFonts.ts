@@ -22,7 +22,7 @@ export function loadBrandFonts() {
   const style = document.createElement('style');
   style.id = 'jf-auth-inputs';
   style.textContent = `
-    input[data-jf-input] { color: #F3F6F1 !important; -webkit-text-fill-color: #F3F6F1; caret-color: #C9FF00; opacity: 1; }
+    input[data-jf-input] { color: #F3F6F1 !important; -webkit-text-fill-color: #F3F6F1; caret-color: #C6FF00; opacity: 1; }
     input[data-jf-input]:disabled { -webkit-text-fill-color: #F3F6F1; opacity: 1; }
     input[data-jf-input]::placeholder { color: #6F7973; -webkit-text-fill-color: #6F7973; }
     input[data-jf-input]:-webkit-autofill,
@@ -30,7 +30,7 @@ export function loadBrandFonts() {
     input[data-jf-input]:-webkit-autofill:focus {
       -webkit-text-fill-color: #F3F6F1;
       -webkit-box-shadow: 0 0 0 1000px #121815 inset;
-      caret-color: #C9FF00;
+      caret-color: #C6FF00;
       transition: background-color 9999s ease-out 0s;
     }
   `;

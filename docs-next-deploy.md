@@ -41,9 +41,19 @@ Héberge l'API sur une plateforme qui fait tourner un processus Node :
 
 ### Réglages (exemple Render)
 
+Le fichier [`render.yaml`](../render.yaml) à la racine du dépôt est un Blueprint :
+
+1. [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
+2. Connecter le dépôt `MeddyCHALDER/J-aime-le-foot-v1`
+3. Au premier deploy, renseigner **`DATABASE_URL`** (Neon, chaîne Postgres)
+4. `JWT_SECRET` est généré automatiquement ; `CORS_ORIGIN` pointe déjà vers `jaimelefoot.app`
+
+Réglages manuels équivalents :
+
 - **Root Directory** : `backend`
 - **Build Command** : `npm install && npx prisma generate && npx prisma migrate deploy`
 - **Start Command** : `npm start`
+- **Health Check Path** : `/api/v1/health`
 
 ### Variables d'environnement
 

@@ -9,11 +9,11 @@ export type AppStackParamList = {
   Main: undefined;
   CreateLeague: undefined;
   JoinLeague: undefined;
-  LeagueDetail: { leagueId: string };
   CreateSeason: { leagueId: string };
   CreateMatch: { leagueId: string; seasonId: string };
   MatchDetail: { matchId: string };
   PlayerProfile: { playerId: string };
+  LeagueDetail: { leagueId: string };
 };
 
 export type RootStackParamList = AuthStackParamList & AppStackParamList;

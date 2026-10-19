@@ -1,23 +1,22 @@
 import React, { useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Text } from 'react-native-paper';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { AppStackParamList, AuthStackParamList } from './types';
 import { useAuth } from '../features/auth/hooks';
-import { signIn, signUp, signOut } from '../features/auth/api';
+import { signIn, signUp } from '../features/auth/api';
 import { LoginScreen } from '../features/auth/LoginScreen';
 import { RegisterScreen } from '../features/auth/RegisterScreen';
 import { ForgotPasswordScreen } from '../features/auth/ForgotPasswordScreen';
 import { UpdatePasswordScreen } from '../features/auth/UpdatePasswordScreen';
 import { BrandSplash } from '../features/auth/components/BrandSplash';
-import { LeagueListScreen } from '../features/leagues/components/LeagueListScreen';
+import { MainTabsScreen } from '../features/home/MainTabsScreen';
 import { CreateLeagueScreen } from '../features/leagues/components/CreateLeagueScreen';
 import { JoinLeagueScreen } from '../features/leagues/components/JoinLeagueScreen';
-import { LeagueDetailScreen } from '../features/leagues/components/LeagueDetailScreen';
 import { CreateSeasonScreen } from '../features/leagues/components/CreateSeasonScreen';
 import { CreateMatchScreen } from '../features/matches/components/CreateMatchScreen';
 import { MatchDetailScreen } from '../features/matches/components/MatchDetailScreen';
 import { PlayerProfileScreen } from '../features/profiles/components/PlayerProfileScreen';
+import { LeagueDetailScreen } from '../features/leagues/components/LeagueDetailScreen';
 import { brand } from '../theme/brand';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -67,37 +66,28 @@ function AppNavigator({ userId }: { userId: string }) {
     <AppStack.Navigator
       screenOptions={{
         headerShown: true,
-        headerTintColor: '#000',
+        headerTintColor: brand.lime,
+        headerStyle: { backgroundColor: brand.ink },
+        headerTitleStyle: { fontWeight: '600' },
       }}
     >
-      <AppStack.Screen
-        name="Main"
-        options={{
-          title: "J'aime le foot",
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => signOut()} style={styles.headerButton}>
-              <Text variant="labelMedium" style={styles.headerButtonText}>
-                Déconnexion
-              </Text>
-            </TouchableOpacity>
-          ),
-        }}
-      >
+      <AppStack.Screen name="Main" options={{ headerShown: false }}>
         {(props) => (
-          <LeagueListScreen
-            onLeaguePress={(leagueId) => props.navigation.navigate('LeagueDetail', { leagueId })}
+          <MainTabsScreen
+            onMatchPress={(matchId) => props.navigation.navigate('MatchDetail', { matchId })}
             onCreateLeague={() => props.navigation.navigate('CreateLeague')}
             onJoinLeague={() => props.navigation.navigate('JoinLeague')}
-            onMyProfile={() => props.navigation.navigate('PlayerProfile', { playerId: userId })}
+            onCreateMatch={(leagueId, seasonId) =>
+              props.navigation.navigate('CreateMatch', { leagueId, seasonId })
+            }
+            onEditProfile={() => props.navigation.navigate('PlayerProfile', { playerId: userId })}
           />
         )}
       </AppStack.Screen>
       <AppStack.Screen name="CreateLeague" options={{ title: 'Créer une ligue' }}>
         {(props) => (
           <CreateLeagueScreen
-            onSuccess={(leagueId) => {
-              props.navigation.replace('LeagueDetail', { leagueId });
-            }}
+            onSuccess={() => props.navigation.goBack()}
             onCancel={() => props.navigation.goBack()}
           />
         )}
@@ -105,9 +95,7 @@ function AppNavigator({ userId }: { userId: string }) {
       <AppStack.Screen name="JoinLeague" options={{ title: 'Rejoindre' }}>
         {(props) => (
           <JoinLeagueScreen
-            onSuccess={(leagueId) => {
-              props.navigation.replace('LeagueDetail', { leagueId });
-            }}
+            onSuccess={() => props.navigation.goBack()}
             onCancel={() => props.navigation.goBack()}
           />
         )}
@@ -192,7 +180,6 @@ export function RootNavigator() {
     );
   }
 
-  // Navigateurs séparés : dès qu’il y a une session, on quitte complètement l’auth
   if (!user) {
     return <AuthNavigator />;
   }
@@ -206,14 +193,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: brand.ink,
-  },
-  headerButton: {
-    marginHorizontal: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  headerButtonText: {
-    color: '#000000',
-    fontWeight: '600',
   },
 });

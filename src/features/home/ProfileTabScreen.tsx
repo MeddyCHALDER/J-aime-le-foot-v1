@@ -1,0 +1,175 @@
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fonts } from '../../theme/brand';
+import { useAppTheme } from '../../theme/ThemeContext';
+import { useAuth } from '../auth/hooks';
+import { signOut } from '../auth/api';
+import { useProfile } from '../profiles/hooks';
+import { usePlayerCard } from '../cards/hooks';
+import { LoadingState, ErrorState } from '../../ui';
+import { useHomeContext } from './useHomeContext';
+
+interface ProfileTabScreenProps {
+  onEditProfile: () => void;
+  onJoinLeague: () => void;
+  onCreateLeague: () => void;
+}
+
+export function ProfileTabScreen({
+  onEditProfile,
+  onJoinLeague,
+  onCreateLeague,
+}: ProfileTabScreenProps) {
+  const insets = useSafeAreaInsets();
+  const { tokens, scheme, toggleScheme } = useAppTheme();
+  const { user } = useAuth();
+  const { data: profile, isLoading, error, refetch } = useProfile(user?.id);
+  const { data: card } = usePlayerCard(user?.id, profile?.preferred_position);
+  const { league } = useHomeContext();
+
+  if (isLoading) return <LoadingState message="Chargement du profil…" />;
+  if (error) return <ErrorState message={String(error)} onRetry={() => refetch()} />;
+  if (!profile) return null;
+
+  const initials = profile.display_name
+    .split(' ')
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <ScrollView
+      style={{ flex: 1, backgroundColor: tokens.ink }}
+      contentContainerStyle={{
+        paddingTop: insets.top + 16,
+        paddingHorizontal: 22,
+        paddingBottom: 40,
+      }}
+    >
+      <Text style={[styles.eyebrow, { color: tokens.lime, fontFamily: fonts.body }]}>Profil</Text>
+      <Text style={[styles.title, { color: tokens.text, fontFamily: fonts.display }]}>
+        {profile.display_name}
+      </Text>
+
+      <View style={styles.hero}>
+        <View style={[styles.avatar, { backgroundColor: 'rgba(198,255,0,0.18)' }]}>
+          <Text style={[styles.initials, { color: tokens.onLime, fontFamily: fonts.display }]}>
+            {initials}
+          </Text>
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={[styles.meta, { color: tokens.muted, fontFamily: fonts.body }]}>
+            {profile.preferred_position ?? 'Poste non renseigné'}
+            {league ? ` · ${league.name}` : ''}
+          </Text>
+          {card ? (
+            <Text style={[styles.ovr, { color: tokens.lime, fontFamily: fonts.display }]}>
+              OVR {card.overallRating}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>
+        <Text style={[styles.cardLabel, { color: tokens.muted2, fontFamily: fonts.body }]}>
+          Apparence
+        </Text>
+        <Pressable onPress={toggleScheme} style={styles.rowBtn}>
+          <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
+            Thème {scheme === 'dark' ? 'sombre' : 'clair'}
+          </Text>
+          <Text style={{ color: tokens.lime, fontFamily: fonts.body, fontWeight: '700' }}>
+            Basculer
+          </Text>
+        </Pressable>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>
+        <Pressable onPress={onEditProfile} style={styles.rowBtn}>
+          <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
+            Modifier mon profil
+          </Text>
+        </Pressable>
+        <Pressable onPress={onJoinLeague} style={styles.rowBtn}>
+          <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
+            Rejoindre une ligue
+          </Text>
+        </Pressable>
+        <Pressable onPress={onCreateLeague} style={styles.rowBtn}>
+          <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
+            Créer une ligue
+          </Text>
+        </Pressable>
+      </View>
+
+      <Pressable
+        onPress={() => signOut()}
+        style={[styles.logout, { borderColor: tokens.line }]}
+      >
+        <Text style={[styles.logoutText, { color: tokens.muted, fontFamily: fonts.body }]}>
+          Déconnexion
+        </Text>
+      </Pressable>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+  },
+  title: {
+    fontSize: 28,
+    fontStyle: 'italic',
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 20,
+  },
+  hero: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 22 },
+  avatar: {
+    width: 74,
+    height: 74,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  initials: { fontSize: 26, fontStyle: 'italic', fontWeight: '700' },
+  meta: { fontSize: 14 },
+  ovr: { fontSize: 20, fontStyle: 'italic', fontWeight: '700' },
+  card: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  cardLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  rowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+  },
+  rowText: { fontSize: 15, fontWeight: '500' },
+  logout: {
+    marginTop: 16,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutText: { fontSize: 14, fontWeight: '600' },
+});

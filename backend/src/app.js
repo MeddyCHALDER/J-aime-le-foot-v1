@@ -3,7 +3,7 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-const { CORS_ORIGINS } = require("./config");
+const { corsOrigin } = require("./config");
 
 const healthRouter = require("./routes/health");
 const authRouter = require("./routes/auth");
@@ -25,8 +25,7 @@ const clubMatchesRouter = require("./routes/club-matches");
 const app = express();
 
 // Middlewares globaux
-// En production, restreindre aux origines du front via CORS_ORIGIN.
-app.use(cors(CORS_ORIGINS ? { origin: CORS_ORIGINS } : undefined));
+app.use(cors({ origin: corsOrigin }));
 app.use(express.json());
 
 // Préfixe API v1

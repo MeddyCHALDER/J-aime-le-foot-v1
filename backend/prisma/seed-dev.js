@@ -48,8 +48,6 @@ async function main() {
   await prisma.postLike.deleteMany();
   await prisma.post.deleteMany();
   await prisma.teamMember.deleteMany();
-  // Les invitations référencent l'équipe : à vider avant elle.
-  await prisma.teamInvite.deleteMany();
   await prisma.team.deleteMany();
   await prisma.tournament.deleteMany();
   await prisma.playerCard.deleteMany();
@@ -153,26 +151,6 @@ async function main() {
     });
   }
 
-  // Match dont l'effectif est au complet : débloque l'export de la compo.
-  const kickoff = new Date(Date.now() + 7 * 864e5);
-  kickoff.setHours(20, 30, 0, 0);
-  const full = await prisma.clubMatch.create({
-    data: {
-      teamId: team.id,
-      tournamentId: championship.id,
-      matchDate: kickoff,
-      round: 9,
-      maxPlayers: profiles.length,
-      status: "OPEN",
-      createdById: admin.user.id,
-    },
-  });
-  for (const p of profiles) {
-    await prisma.clubMatchRegistration.create({
-      data: { clubMatchId: full.id, playerProfileId: p.profile.id, userId: p.user.id },
-    });
-  }
-
   // Match joué, feuille encore vide : c'est celui que l'admin doit saisir.
   const played = await prisma.clubMatch.create({
     data: {
@@ -244,8 +222,7 @@ async function main() {
   console.log("Seed OK");
   console.log(`  club        ${team.name} (${profiles.length} joueurs)`);
   console.log(`  admin       ${admin.user.email} / password123`);
-  console.log(`  match ouvert     ${upcoming.id}`);
-  console.log(`  match complet    ${full.id}`);
+  console.log(`  match ouvert   ${upcoming.id}`);
   console.log(`  feuille à saisir ${played.id}`);
 }
 

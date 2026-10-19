@@ -5,7 +5,7 @@ const prisma = require("../db/client");
 
 const router = express.Router();
 
-const { JWT_SECRET } = require("../config");
+const { jwtSecret: JWT_SECRET } = require("../config");
 
 // Helper pour générer un token JWT
 function generateToken(user) {
