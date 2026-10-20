@@ -8,6 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import type { PlayerCardStats } from './card-rules';
+import { isKnownPosition } from './positions';
 
 const GOLD =
   'linear-gradient(150deg,#E8C46A 0%,#F6E7B6 30%,#D9B45A 52%,#C99B3B 78%,#F2DFA8 100%)';
@@ -15,6 +16,8 @@ const INK = '#2a2410';
 
 export function positionShort(position?: string | null): string {
   if (!position) return '—';
+  // Postes de la liste officielle (GB, DC, MC, BU…) : affichés tels quels
+  if (isKnownPosition(position)) return position.trim().toUpperCase();
   const p = position.toLowerCase();
   if (p.includes('gard')) return 'GK';
   if (p.includes('déf') || p.includes('def') || p === 'dc') return 'CB';

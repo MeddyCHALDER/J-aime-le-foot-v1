@@ -10,6 +10,8 @@ import { useUploadMedia } from '../../media/hooks';
 import { FifaCard } from '../../cards/FifaCard';
 import { usePlayerCard } from '../../cards/hooks';
 import { FifaPhotoGuide } from './FifaPhotoGuide';
+import { PositionPicker } from './PositionPicker';
+import { isKnownPosition } from '../../cards/positions';
 
 interface PlayerProfileScreenProps {
   playerId: string;
@@ -51,7 +53,7 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
       id: playerId,
       updates: {
         display_name: displayName.trim() || profile.display_name,
-        preferred_position: position.trim() || null,
+        preferred_position: isKnownPosition(position) ? position.trim().toUpperCase() : null,
         strong_foot: foot,
         bio: bio.trim() || null,
       },
@@ -138,13 +140,7 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
               mode="outlined"
               style={styles.input}
             />
-            <TextInput
-              label="Poste (ex. BU, MC, DC)"
-              value={position}
-              onChangeText={setPosition}
-              mode="outlined"
-              style={styles.input}
-            />
+            <PositionPicker value={position} onChange={setPosition} />
             <Text variant="labelLarge" style={styles.label}>
               Pied fort
             </Text>
@@ -171,6 +167,7 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
               mode="contained"
               onPress={save}
               loading={updateProfile.isPending}
+              disabled={!isKnownPosition(position) || updateProfile.isPending}
               style={styles.button}
             >
               Enregistrer

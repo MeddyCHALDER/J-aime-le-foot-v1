@@ -29,6 +29,7 @@ import {
 } from '../seasonAwardsHooks';
 import { LINEUP_FORMATS, formatOf, formationSlots, type PitchSlot } from '../formations';
 import { LoadingState } from '../../../ui';
+import { lineOf, POSITIONS } from '../../cards/positions';
 import { toErrorMessage } from '../../../lib/errors';
 import { confirmAction } from '../../../lib/confirm';
 
@@ -100,12 +101,20 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
   }, [results.data, slots]);
   const voters = results.data?.[0]?.voters ?? 0;
 
+  // Seuls les joueurs de la ligne du poste touché (un poste MIL ne propose que MDC / MC / MOC)
   const candidates = useMemo(() => {
     const q = normalize(query);
+    const line = picking?.label;
     return (roster.data ?? []).filter(
-      (p) => p.player_id !== user?.id && (!q || normalize(p.display_name).includes(q))
+      (p) =>
+        p.player_id !== user?.id &&
+        (!line || lineOf(p.preferred_position) === line) &&
+        (!q || normalize(p.display_name).includes(q))
     );
-  }, [roster.data, query, user?.id]);
+  }, [roster.data, query, user?.id, picking]);
+  const lineCodes = picking
+    ? POSITIONS.filter((x) => x.line === picking.label).map((x) => x.code).join(', ')
+    : '';
 
   if (roster.isLoading || mine.isLoading) return <LoadingState message="Chargement du terrain…" />;
 
@@ -354,6 +363,9 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
                 Platform.OS === 'web' ? ({ outlineStyle: 'none', colorScheme: scheme } as object) : null,
               ]}
             />
+            <Text style={[styles.note, body, { color: tokens.muted2, marginTop: 0, marginBottom: 8 }]}>
+              Postes proposés : {lineCodes}
+            </Text>
             {picking && draft[picking.key] ? (
               <Pressable onPress={clearSlot} accessibilityRole="button" style={[styles.clear, { borderColor: tokens.line }]}>
                 <Text style={[styles.secondaryText, body, { color: tokens.errorText }]}>Libérer ce poste</Text>
@@ -366,7 +378,9 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
               style={{ maxHeight: 420 }}
               ListEmptyComponent={
                 <Text style={[styles.note, body, { color: tokens.muted, textAlign: 'center' }]}>
-                  {query ? 'Aucun joueur ne correspond.' : 'Aucun autre joueur dans la ligue.'}
+                  {query
+                    ? 'Aucun joueur ne correspond.'
+                    : `Aucun joueur à ce poste (${lineCodes}). Les joueurs choisissent leur poste dans leur profil.`}
                 </Text>
               }
               renderItem={({ item }) => {

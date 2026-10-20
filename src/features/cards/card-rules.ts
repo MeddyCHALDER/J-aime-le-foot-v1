@@ -1,3 +1,4 @@
+import { baseKeyOf } from './positions';
 /**
  * Règles carte joueur — portées depuis J-aime-le-foot (Next).
  * Ce qui se passe sur le terrain nourrit la carte (note + stats).
@@ -67,7 +68,8 @@ function clamp(v: number, min: number, max: number): number {
 }
 
 export function baseStats(position: string | null | undefined): StatBlock {
-  return { ...(BASE[position ?? ''] ?? BASE.Milieu) };
+  const key = baseKeyOf(position) ?? position ?? '';
+  return { ...(BASE[key] ?? BASE.Milieu) };
 }
 
 export function overallFrom(stats: StatBlock, position: string | null | undefined): number {
