@@ -18,6 +18,7 @@ import { MiniPlayerCard } from '../cards/MiniPlayerCard';
 import { awardBlurb } from '../awards/seasonAwardsApi';
 import {
   useCreateAward,
+  useMyLineups,
   useMyVotes,
   useOpenSeasonAwards,
   useSeasonAwards,
@@ -25,6 +26,7 @@ import {
 import { EmptyState, LoadingState, ErrorState, Appear } from '../../ui';
 import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
+import { LINEUP_FORMATS, formatOf } from '../awards/formations';
 
 interface VotesTabScreenProps {
   onAwardPress: (awardId: string, leagueId: string) => void;
@@ -42,11 +44,18 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
     (awards.data ?? []).map((a) => a.id),
     user?.id
   );
+  const myLineups = useMyLineups(
+    (awards.data ?? []).filter((a) => a.kind === 'lineup').map((a) => a.id),
+    user?.id
+  );
   const openAwards = useOpenSeasonAwards();
   const createAward = useCreateAward(season?.id);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [formOpen, setFormOpen] = useState(false);
+  const [newKind, setNewKind] = useState<'single' | 'lineup'>('single');
+  const [newSize, setNewSize] = useState(11);
+  const [newFormation, setNewFormation] = useState(formatOf(11).formations[0]);
 
   const isAdmin = !!user?.id && !!league && user.id === league.created_by;
   const playerOf = (playerId: string) => roster.data?.find((p) => p.player_id === playerId);
@@ -91,7 +100,9 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
   }
 
   const list = awards.data ?? [];
-  const voted = list.filter((a) => myVotes.data?.[a.id]).length;
+  const votedFor = (a: (typeof list)[number]) =>
+    a.kind === 'lineup' ? !!myLineups.data?.[a.id] : !!myVotes.data?.[a.id];
+  const voted = list.filter(votedFor).length;
 
   return (
     <ScrollView
@@ -126,21 +137,27 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
           </Text>
           {list.map((award, i) => {
             const blurb = awardBlurb(award);
-            const choice = myVotes.data?.[award.id];
+            const isLineup = award.kind === 'lineup';
+            const choice = isLineup ? undefined : myVotes.data?.[award.id];
             const chosen = choice ? playerOf(choice) : undefined;
+            const lineupDone = isLineup && !!myLineups.data?.[award.id];
             return (
               <Appear key={award.id} index={i}>
               <Pressable
                 onPress={() => onAwardPress(award.id, league.id)}
                 accessibilityRole="button"
-                accessibilityLabel={`${award.title}, ${choice ? `ton vote : ${nameOf(choice)}` : 'pas encore voté'}`}
-                style={[styles.card, { backgroundColor: tokens.surface, borderColor: choice ? tokens.lime : tokens.line }]}
+                accessibilityLabel={`${award.title}, ${choice ? `ton vote : ${nameOf(choice)}` : lineupDone ? 'ton équipe est votée' : 'pas encore voté'}`}
+                style={[styles.card, { backgroundColor: tokens.surface, borderColor: choice || lineupDone ? tokens.lime : tokens.line }]}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.cardTitle, { color: tokens.text, fontFamily: fonts.display }]}>
                     {award.title}
                   </Text>
-                  {blurb ? (
+                  {isLineup ? (
+                    <Text style={[styles.cardSub, { color: tokens.muted, fontFamily: fonts.body }]}>
+                      Équipe type · {award.lineup_size} joueurs · {award.formation}
+                    </Text>
+                  ) : blurb ? (
                     <Text style={[styles.cardSub, { color: tokens.muted, fontFamily: fonts.body }]}>
                       {blurb}
                     </Text>
@@ -148,10 +165,18 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                   <Text
                     style={[
                       styles.cardChoice,
-                      { color: choice ? tokens.lime : tokens.muted2, fontFamily: fonts.body },
+                      { color: choice || lineupDone ? tokens.lime : tokens.muted2, fontFamily: fonts.body },
                     ]}
                   >
-                    {choice ? `Ton vote : ${nameOf(choice)}` : award.is_open ? 'À voter' : 'Pas de vote'}
+                    {choice
+                      ? `Ton vote : ${nameOf(choice)}`
+                      : lineupDone
+                        ? 'Ton équipe est votée'
+                        : award.is_open
+                          ? isLineup
+                            ? 'Compose ton équipe'
+                            : 'À voter'
+                          : 'Pas de vote'}
                   </Text>
                 </View>
                 {chosen ? (
@@ -186,10 +211,82 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
               <Text style={[styles.adminTitle, { color: tokens.lime, fontFamily: fonts.body }]}>
                 Nouveau trophée
               </Text>
+              <View style={styles.kindRow}>
+                {(
+                  [
+                    ['single', 'Un joueur'],
+                    ['lineup', 'Équipe type'],
+                  ] as const
+                ).map(([k, label]) => {
+                  const on = newKind === k;
+                  return (
+                    <Pressable
+                      key={k}
+                      onPress={() => setNewKind(k)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: on }}
+                      style={[
+                        styles.kindBtn,
+                        { borderColor: on ? tokens.lime : tokens.line },
+                        on && { backgroundColor: tokens.lime },
+                      ]}
+                    >
+                      <Text style={[styles.kindText, { color: on ? tokens.onLime : tokens.text, fontFamily: fonts.body }]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {newKind === 'lineup' ? (
+                <>
+                  <Text style={[styles.pickLabel, { color: tokens.muted, fontFamily: fonts.body }]}>Format</Text>
+                  <View style={styles.chips}>
+                    {LINEUP_FORMATS.map((f) => {
+                      const on = newSize === f.size;
+                      return (
+                        <Pressable
+                          key={f.size}
+                          onPress={() => {
+                            setNewSize(f.size);
+                            setNewFormation(f.formations[0]);
+                          }}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: on }}
+                          style={[styles.chip, { borderColor: on ? tokens.lime : tokens.line }]}
+                        >
+                          <Text style={[styles.chipText, { color: on ? tokens.lime : tokens.text, fontFamily: fonts.body }]}>
+                            {f.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={[styles.pickLabel, { color: tokens.muted, fontFamily: fonts.body }]}>Formation</Text>
+                  <View style={styles.chips}>
+                    {formatOf(newSize).formations.map((f) => {
+                      const on = newFormation === f;
+                      return (
+                        <Pressable
+                          key={f}
+                          onPress={() => setNewFormation(f)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: on }}
+                          style={[styles.chip, { borderColor: on ? tokens.lime : tokens.line }]}
+                        >
+                          <Text style={[styles.chipText, { color: on ? tokens.lime : tokens.text, fontFamily: fonts.body }]}>
+                            {f}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : null}
               <TextInput
                 value={newTitle}
                 onChangeText={setNewTitle}
-                placeholder="Nom du trophée (ex. Meilleur tacle)"
+                placeholder={newKind === 'lineup' ? `Nom (ex. Meilleur ${newSize} de la saison)` : 'Nom du trophée (ex. Meilleur tacle)'}
                 placeholderTextColor={tokens.placeholder}
                 maxLength={60}
                 accessibilityLabel="Nom du trophée"
@@ -207,7 +304,11 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
               <Pressable
                 onPress={async () => {
                   if (!newTitle.trim()) return;
-                  await createAward.mutateAsync({ title: newTitle, description: newDesc });
+                  await createAward.mutateAsync({
+                    title: newTitle,
+                    description: newDesc,
+                    lineup: newKind === 'lineup' ? { size: newSize, formation: newFormation } : undefined,
+                  });
                   setNewTitle('');
                   setNewDesc('');
                   setFormOpen(false);
@@ -318,4 +419,11 @@ const styles = StyleSheet.create({
   secondaryText: { fontSize: 14, fontWeight: '700' },
   addRow: { alignItems: 'center', paddingVertical: 4 },
   addText: { fontSize: 15, fontWeight: '700' },
+  kindRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  kindBtn: { flex: 1, height: 42, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  kindText: { fontSize: 14, fontWeight: '700' },
+  pickLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, height: 34, justifyContent: 'center' },
+  chipText: { fontSize: 13, fontWeight: '700' },
 });

@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
 
       const { data: awards } = await admin
         .from('season_awards')
-        .select('id, season_id, title, is_open, created_at')
+        .select('*')
         .in('id', awardIds)
         .order('created_at');
       const open = (awards ?? []).filter((a) => a.is_open);
@@ -145,7 +145,9 @@ Deno.serve(async (req) => {
           return {
             title: `Votes ouverts · ${leagueName}`,
             body: single
-              ? `« ${single.title} » : choisis ton joueur.`
+              ? single.kind === 'lineup'
+                ? `« ${single.title} » : compose ton équipe type.`
+                : `« ${single.title} » : choisis ton joueur.`
               : `${sent.length} trophées à voter : ${sent.map((a) => a.title).join(', ')}.`,
             url: single
               ? `/?open=award&id=${single.id}&league=${leagueId}`

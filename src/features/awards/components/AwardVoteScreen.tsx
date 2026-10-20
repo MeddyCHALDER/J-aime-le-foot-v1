@@ -26,6 +26,7 @@ import {
 import { ErrorState, LoadingState, Appear } from '../../../ui';
 import { toErrorMessage } from '../../../lib/errors';
 import { confirmAction } from '../../../lib/confirm';
+import { LineupVoteScreen } from './LineupVoteScreen';
 
 interface AwardVoteScreenProps {
   awardId: string;
@@ -89,6 +90,10 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
     );
   }
   if (!award.data) return <ErrorState message="Trophée introuvable." />;
+  // Équipe type : vote sur un terrain (écran dédié)
+  if (award.data.kind === 'lineup') {
+    return <LineupVoteScreen award={award.data} leagueId={leagueId} onDeleted={onDeleted} />;
+  }
 
   const blurb = awardBlurb(award.data);
   const choiceName = roster.data?.find((p) => p.player_id === myChoice)?.display_name;

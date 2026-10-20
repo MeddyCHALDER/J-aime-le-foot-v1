@@ -24,6 +24,10 @@ export type SeasonAward = {
   type: AwardType | 'custom' | string;
   title: string;
   description?: string | null;
+  /** 'single' = un joueur ; 'lineup' = équipe type (migration 013) */
+  kind?: 'single' | 'lineup';
+  lineup_size?: number | null;
+  formation?: string | null;
   is_open: boolean;
   created_at: string;
 };
@@ -180,16 +184,20 @@ export async function voteForPlayer(awardId: string, playerId: string): Promise<
 export async function createAward(
   seasonId: string,
   title: string,
-  description?: string
+  description?: string,
+  /** Équipe type : nombre de joueurs et formation */
+  lineup?: { size: number; formation: string }
 ): Promise<SeasonAward> {
   const { data, error } = await supabase
     .from('season_awards')
     .insert({
       season_id: seasonId,
-      type: 'custom',
+      type: lineup ? 'lineup' : 'custom',
       title: title.trim(),
       description: description?.trim() || null,
       is_open: true,
+      // Colonnes de la migration 013, envoyées seulement pour une équipe type
+      ...(lineup ? { kind: 'lineup', lineup_size: lineup.size, formation: lineup.formation } : {}),
     })
     .select()
     .single();
@@ -211,4 +219,54 @@ export async function deleteAward(awardId: string): Promise<void> {
 /** Description affichée : celle saisie par l'admin, sinon celle du catalogue. */
 export function awardBlurb(award: Pick<SeasonAward, 'type' | 'description'>): string | null {
   return award.description || AWARD_CATALOG.find((c) => c.type === award.type)?.blurb || null;
+}
+
+/** Équipe type : poste → joueur */
+export type LineupSlots = Record<string, string>;
+
+/** Compos déjà votées par l'utilisateur : { awardId: slots } */
+export async function fetchMyLineups(awardIds: string[], voterId: string): Promise<Record<string, LineupSlots>> {
+  if (awardIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('award_lineup_votes')
+    .select('award_id, slots')
+    .eq('voter_id', voterId)
+    .in('award_id', awardIds);
+  // Table absente (migration 013 non passée) : aucune compo
+  if (error) return {};
+  const out: Record<string, LineupSlots> = {};
+  for (const row of (data ?? []) as Array<{ award_id: string; slots: LineupSlots }>) {
+    out[row.award_id] = row.slots;
+  }
+  return out;
+}
+
+export async function castLineupVote(awardId: string, slots: LineupSlots): Promise<void> {
+  const { error } = await supabase.rpc('cast_lineup_vote', { p_award_id: awardId, p_slots: slots });
+  if (error) throw error;
+}
+
+/** Admin : change le format (11, 9, 8…) ; renvoie le nombre de compos effacées. */
+export async function setLineupFormat(awardId: string, size: number, formation: string): Promise<number> {
+  const { data, error } = await supabase.rpc('set_lineup_format', {
+    p_award_id: awardId,
+    p_size: size,
+    p_formation: formation,
+  });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+export interface LineupResultRow {
+  slot: string;
+  player_id: string;
+  votes: number;
+  voters: number;
+}
+
+/** Voix par poste (disponibles une fois le vote clôturé). */
+export async function fetchLineupResults(awardId: string): Promise<LineupResultRow[]> {
+  const { data, error } = await supabase.rpc('lineup_results', { p_award_id: awardId });
+  if (error) throw error;
+  return (data ?? []) as LineupResultRow[];
 }

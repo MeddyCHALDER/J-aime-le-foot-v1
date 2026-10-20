@@ -129,8 +129,15 @@ export function useCloseAward(seasonId: string | undefined) {
 export function useCreateAward(seasonId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ title, description }: { title: string; description?: string }) =>
-      api.createAward(seasonId!, title, description),
+    mutationFn: ({
+      title,
+      description,
+      lineup,
+    }: {
+      title: string;
+      description?: string;
+      lineup?: { size: number; formation: string };
+    }) => api.createAward(seasonId!, title, description, lineup),
     onSuccess: (award) => {
       if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
       void announceVotesOpen([award.id]);
@@ -147,5 +154,48 @@ export function useDeleteAward(seasonId: string | undefined) {
       qc.invalidateQueries({ queryKey: voteKeys.minePrefix });
       if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
     },
+  });
+}
+
+export const lineupKeys = {
+  mine: (voterId: string, awardIds: string[]) => ['award_my_lineups', voterId, ...awardIds] as const,
+  minePrefix: ['award_my_lineups'] as const,
+  results: (awardId: string) => ['award_lineup_results', awardId] as const,
+};
+
+export function useMyLineups(awardIds: string[], voterId: string | undefined) {
+  return useQuery({
+    queryKey: lineupKeys.mine(voterId ?? '', awardIds),
+    queryFn: () => api.fetchMyLineups(awardIds, voterId!),
+    enabled: !!voterId && awardIds.length > 0,
+  });
+}
+
+export function useCastLineupVote(awardId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (slots: api.LineupSlots) => api.castLineupVote(awardId, slots),
+    onSuccess: () => qc.invalidateQueries({ queryKey: lineupKeys.minePrefix }),
+  });
+}
+
+export function useSetLineupFormat(awardId: string, seasonId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ size, formation }: { size: number; formation: string }) =>
+      api.setLineupFormat(awardId, size, formation),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: voteKeys.award(awardId) });
+      qc.invalidateQueries({ queryKey: lineupKeys.minePrefix });
+      if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
+    },
+  });
+}
+
+export function useLineupResults(awardId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: lineupKeys.results(awardId),
+    queryFn: () => api.fetchLineupResults(awardId),
+    enabled,
   });
 }
