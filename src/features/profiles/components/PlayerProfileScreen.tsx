@@ -9,6 +9,7 @@ import { pickMediaFile } from '../../media/api';
 import { useUploadMedia } from '../../media/hooks';
 import { FifaCard } from '../../cards/FifaCard';
 import { usePlayerCard } from '../../cards/hooks';
+import { FifaPhotoGuide } from './FifaPhotoGuide';
 
 interface PlayerProfileScreenProps {
   playerId: string;
@@ -30,6 +31,7 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
   const [bio, setBio] = useState('');
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [photoGuide, setPhotoGuide] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -106,7 +108,7 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
           <>
             <Button
               mode="outlined"
-              onPress={changeAvatar}
+              onPress={() => setPhotoGuide(true)}
               loading={uploadMedia.isPending || updateProfile.isPending}
               disabled={uploadMedia.isPending}
               style={styles.button}
@@ -119,6 +121,11 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
                 {avatarError}
               </HelperText>
             ) : null}
+            <FifaPhotoGuide
+              visible={photoGuide}
+              onClose={() => setPhotoGuide(false)}
+              onImport={changeAvatar}
+            />
           </>
         ) : null}
 
