@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts } from '../../theme/brand';
@@ -14,6 +14,7 @@ import { useHomeContext } from './useHomeContext';
 import { useLeaveLeague } from '../members/hooks';
 import { confirmAction } from '../../lib/confirm';
 import { isStandalone } from '../../lib/install';
+import { InviteCard } from '../leagues/components/InviteCard';
 import { PushToggle } from '../notifications/PushToggle';
 
 interface ProfileTabScreenProps {
@@ -36,6 +37,7 @@ export function ProfileTabScreen({
   const { data: card } = usePlayerCard(user?.id, profile?.preferred_position);
   const { league } = useHomeContext();
   const leave = useLeaveLeague();
+  const [showInvite, setShowInvite] = useState(false);
   // Le gérant ne peut pas quitter sa ligue : elle resterait sans admin.
   const isLeagueAdmin = !!league && !!user?.id && league.created_by === user.id;
 
@@ -137,12 +139,27 @@ export function ProfileTabScreen({
             {toErrorMessage(leave.error)}
           </Text>
         ) : null}
+        {league?.invite_code ? (
+          <Pressable accessibilityRole="button" onPress={() => setShowInvite((v) => !v)} style={styles.rowBtn}>
+            <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
+              Inviter des joueurs
+            </Text>
+            <Text style={{ color: tokens.lime, fontFamily: fonts.body, fontWeight: '700' }}>
+              {showInvite ? 'Masquer' : 'Lien'}
+            </Text>
+          </Pressable>
+        ) : null}
         <Pressable accessibilityRole="button" onPress={onCreateLeague} style={styles.rowBtn}>
           <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
             Créer une ligue
           </Text>
         </Pressable>
       </View>
+      {showInvite && league?.invite_code ? (
+        <View style={{ marginBottom: 12 }}>
+          <InviteCard leagueName={league.name} code={league.invite_code} />
+        </View>
+      ) : null}
 
       <Pressable accessibilityRole="button"
         onPress={() => signOut()}

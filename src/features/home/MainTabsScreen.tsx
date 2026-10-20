@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Platform, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { TabBar, useTabBarHeight, type PlayerTab } from '../../components/TabBar';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { MatchesTabScreen } from './MatchesTabScreen';
@@ -9,6 +9,10 @@ import { useNotificationOpener } from '../notifications/hooks';
 import { useAuth } from '../auth/hooks';
 import { InstallGuide } from '../onboarding/InstallGuide';
 import { FadeSwap } from '../../ui/Motion';
+import { takePendingJoin } from '../leagues/invite';
+import { useJoinLeagueByCode } from '../leagues/hooks';
+import { toErrorMessage } from '../../lib/errors';
+import { fonts } from '../../theme/brand';
 import { installGuideSeen, isStandalone, markInstallGuideSeen } from '../../lib/install';
 
 interface MainTabsScreenProps {
@@ -44,6 +48,28 @@ export function MainTabsScreen({
       setInstallGuide(true);
     }
   }, [user?.id]);
+  // Lien d'invitation ouvert (avant ou après connexion) : on rejoint la ligue une fois connecté
+  const join = useJoinLeagueByCode();
+  const [joinBanner, setJoinBanner] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    if (!user?.id) return;
+    const code = takePendingJoin();
+    if (!code) return;
+    join.mutate(code, {
+      onSuccess: () => {
+        setTab('matches');
+        setJoinBanner({ ok: true, text: 'Bienvenue ! Tu as rejoint la ligue.' });
+      },
+      onError: (e) => setJoinBanner({ ok: false, text: toErrorMessage(e) }),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule tentative par connexion
+  }, [user?.id]);
+  useEffect(() => {
+    if (!joinBanner) return;
+    const t = setTimeout(() => setJoinBanner(null), 5000);
+    return () => clearTimeout(t);
+  }, [joinBanner]);
+
   const closeInstallGuide = () => {
     if (user?.id) markInstallGuideSeen(user.id);
     setInstallGuide(false);
@@ -91,6 +117,24 @@ export function MainTabsScreen({
       <View style={[styles.tabDock, fixedDock && styles.tabDockFixed]} pointerEvents="box-none">
         <TabBar active={tab} onChange={setTab} />
       </View>
+      {joinBanner ? (
+        <View
+          style={[
+            styles.banner,
+            { backgroundColor: joinBanner.ok ? tokens.lime : tokens.errorBg },
+          ]}
+          accessibilityLiveRegion="polite"
+        >
+          <Text
+            style={[
+              styles.bannerText,
+              { color: joinBanner.ok ? tokens.onLime : tokens.errorText, fontFamily: fonts.body },
+            ]}
+          >
+            {joinBanner.text}
+          </Text>
+        </View>
+      ) : null}
       {installGuide ? <InstallGuide onClose={closeInstallGuide} /> : null}
     </View>
   );
@@ -114,6 +158,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 20,
   },
+  banner: {
+    position: 'absolute',
+    top: 12,
+    left: 16,
+    right: 16,
+    zIndex: 40,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  bannerText: { fontSize: 14, fontWeight: '700', textAlign: 'center' },
   tabDockFixed: {
     position: 'fixed' as 'absolute',
     maxWidth: 440,

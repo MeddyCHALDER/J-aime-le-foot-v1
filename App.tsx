@@ -8,6 +8,7 @@ import { queryClient } from './src/lib/queryClient';
 import { registerPwa } from './src/lib/registerPwa';
 import { initInstallPrompt } from './src/lib/install';
 import { installPressFeedback } from './src/lib/pressFeedback';
+import { capturePendingJoin } from './src/features/leagues/invite';
 import { loadBrandFonts } from './src/lib/brandFonts';
 import './src/lib/motion';
 import { AppThemeProvider, useAppTheme } from './src/theme/ThemeContext';
@@ -18,6 +19,8 @@ registerPwa();
 initInstallPrompt();
 loadBrandFonts();
 installPressFeedback();
+// Lien d'invitation ?join=CODE : gardé même si le joueur doit d'abord se connecter
+capturePendingJoin();
 
 function NavigationRoot() {
   const { scheme, tokens } = useAppTheme();

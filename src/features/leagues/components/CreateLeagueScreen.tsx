@@ -5,6 +5,8 @@ import { Screen } from '../../../ui';
 import { useCreateLeague } from '../hooks';
 import { useAuth } from '../../auth/hooks';
 import { brand } from '../../../theme/brand';
+import { InviteCard } from './InviteCard';
+import type { League } from '../../../types/entities';
 
 interface CreateLeagueScreenProps {
   onSuccess: (leagueId: string) => void;
@@ -16,6 +18,7 @@ export function CreateLeagueScreen({ onSuccess, onCancel }: CreateLeagueScreenPr
   const [name, setName] = useState('');
   const [city, setCity] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [created, setCreated] = useState<League | null>(null);
   const createLeague = useCreateLeague();
 
   const handleSubmit = async () => {
@@ -27,11 +30,25 @@ export function CreateLeagueScreen({ onSuccess, onCancel }: CreateLeagueScreenPr
         createdBy: user.id,
         city: city.trim() || undefined,
       });
-      onSuccess(league.id);
+      // Étape suivante : inviter les potes, avant de revenir à l'accueil
+      setCreated(league);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Création impossible');
     }
   };
+
+  if (created) {
+    return (
+      <Screen title="Ligue créée !" subtitle={`${created.name} est prête. Invite tes potes pour remplir les matchs.`}>
+        {created.invite_code ? (
+          <InviteCard leagueName={created.name} code={created.invite_code} />
+        ) : null}
+        <Button mode="contained" onPress={() => onSuccess(created.id)} style={styles.button}>
+          Terminer
+        </Button>
+      </Screen>
+    );
+  }
 
   return (
     <Screen
