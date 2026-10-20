@@ -47,13 +47,13 @@ export function IconProfile({ color, size = 23 }: IconProps) {
 export function IconVote({ color, size = 23 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" accessibilityElementsHidden>
+      <Path d="M7.5 4h9v4.5a4.5 4.5 0 0 1-9 0V4z" stroke={color} {...stroke} />
       <Path
-        d="M8 4.5h8v3.2c0 2.4-1.7 4.4-4 4.8-2.3-.4-4-2.4-4-4.8V4.5z"
+        d="M7.5 6H5.6a1.9 1.9 0 0 0 0 3.8h2.1M16.5 6h1.9a1.9 1.9 0 0 1 0 3.8h-2.1"
         stroke={color}
         {...stroke}
       />
-      <Path d="M8 5.2H5.8A2.3 2.3 0 0 1 5.8 9.8H8M16 5.2h2.2a2.3 2.3 0 0 1 0 4.6H16" stroke={color} {...stroke} />
-      <Path d="M12 12.5v3.2M9 20.5h6M12 15.7h0a2.4 2.4 0 0 0-2.4 2.4V20.5h4.8v-2.4a2.4 2.4 0 0 0-2.4-2.4z" stroke={color} {...stroke} />
+      <Path d="M12 13v3.6M8.5 20.3h7M9.8 20.3c.2-2.2 1-3.7 2.2-3.7s2 1.5 2.2 3.7" stroke={color} {...stroke} />
     </Svg>
   );
 }
