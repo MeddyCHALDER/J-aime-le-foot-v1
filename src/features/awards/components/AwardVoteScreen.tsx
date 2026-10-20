@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -13,11 +14,12 @@ import { useAppTheme } from '../../../theme/ThemeContext';
 import { useAuth } from '../../auth/hooks';
 import { useLeagueRoster } from '../../members/hooks';
 import type { RosterPlayer } from '../../members/api';
-import { AWARD_CATALOG } from '../seasonAwardsApi';
+import { awardBlurb } from '../seasonAwardsApi';
 import {
   useAward,
   useAwardTally,
   useCloseAward,
+  useDeleteAward,
   useMyVotes,
   useVoteForPlayer,
 } from '../seasonAwardsHooks';
@@ -27,6 +29,20 @@ import { toErrorMessage } from '../../../lib/errors';
 interface AwardVoteScreenProps {
   awardId: string;
   leagueId: string;
+  /** Après suppression du trophée par l'admin */
+  onDeleted: () => void;
+}
+
+/** Confirmation multiplateforme (Alert n'a pas de boutons sur le web). */
+function confirmAction(title: string, message: string, onConfirm: () => void) {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${message}`)) onConfirm();
+    return;
+  }
+  Alert.alert(title, message, [
+    { text: 'Annuler', style: 'cancel' },
+    { text: 'Supprimer', style: 'destructive', onPress: onConfirm },
+  ]);
 }
 
 /** Recherche sans tenir compte des accents ni des majuscules. */
@@ -38,7 +54,7 @@ const normalize = (s: string) =>
     .trim();
 
 /** Page d'un trophée : tous les joueurs de la ligue, recherche, vote en un geste. */
-export function AwardVoteScreen({ awardId, leagueId }: AwardVoteScreenProps) {
+export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScreenProps) {
   const { tokens, scheme } = useAppTheme();
   const { user } = useAuth();
   const award = useAward(awardId);
@@ -49,7 +65,15 @@ export function AwardVoteScreen({ awardId, leagueId }: AwardVoteScreenProps) {
   // Voix masquées pendant le vote pour ne pas influencer ; visibles une fois clôturé.
   const tally = useAwardTally(awardId, !isOpen);
   const close = useCloseAward(award.data?.season_id);
+  const remove = useDeleteAward(award.data?.season_id);
   const [query, setQuery] = useState('');
+  // Le toucher qui ouvre la page peut retomber sur la ligne affichée au même endroit
+  // et voter sans le vouloir : on ignore les touchers juste après l'ouverture.
+  const openedAt = useRef(Date.now());
+  const castVote = (playerId: string) => {
+    if (Date.now() - openedAt.current < 600) return;
+    vote.mutate(playerId);
+  };
 
   const isAdmin = !!roster.data?.find((p) => p.player_id === user?.id && p.role === 'admin');
   const myChoice = myVotes.data?.[awardId];
@@ -77,7 +101,7 @@ export function AwardVoteScreen({ awardId, leagueId }: AwardVoteScreenProps) {
   }
   if (!award.data) return <ErrorState message="Trophée introuvable." />;
 
-  const cat = AWARD_CATALOG.find((c) => c.type === award.data!.type);
+  const blurb = awardBlurb(award.data);
   const choiceName = roster.data?.find((p) => p.player_id === myChoice)?.display_name;
 
   const renderPlayer = ({ item, index }: { item: RosterPlayer; index: number }) => {
@@ -87,7 +111,7 @@ export function AwardVoteScreen({ awardId, leagueId }: AwardVoteScreenProps) {
     const disabled = !isOpen || me || vote.isPending;
     return (
       <Pressable
-        onPress={() => vote.mutate(item.player_id)}
+        onPress={() => castVote(item.player_id)}
         disabled={disabled}
         accessibilityRole="button"
         accessibilityState={{ selected: chosen, disabled }}
@@ -144,8 +168,8 @@ export function AwardVoteScreen({ awardId, leagueId }: AwardVoteScreenProps) {
           <Text style={[styles.title, { color: tokens.text, fontFamily: fonts.display }]}>
             {award.data.title}
           </Text>
-          {cat ? (
-            <Text style={[styles.sub, { color: tokens.muted, fontFamily: fonts.body }]}>{cat.blurb}</Text>
+          {blurb ? (
+            <Text style={[styles.sub, { color: tokens.muted, fontFamily: fonts.body }]}>{blurb}</Text>
           ) : null}
 
           <View style={[styles.choice, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>
@@ -201,17 +225,42 @@ export function AwardVoteScreen({ awardId, leagueId }: AwardVoteScreenProps) {
         </Text>
       }
       ListFooterComponent={
-        isAdmin && isOpen ? (
-          <Pressable
-            onPress={() => close.mutate(awardId)}
-            disabled={close.isPending}
-            style={[styles.close, { borderColor: tokens.line }]}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.closeText, { color: tokens.text, fontFamily: fonts.body }]}>
-              {close.isPending ? 'Clôture…' : 'Clôturer le vote et afficher les résultats'}
-            </Text>
-          </Pressable>
+        isAdmin ? (
+          <View style={styles.adminActions}>
+            {isOpen ? (
+              <Pressable
+                onPress={() => close.mutate(awardId)}
+                disabled={close.isPending}
+                style={[styles.close, { borderColor: tokens.line }]}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.closeText, { color: tokens.text, fontFamily: fonts.body }]}>
+                  {close.isPending ? 'Clôture…' : 'Clôturer le vote et afficher les résultats'}
+                </Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() =>
+                confirmAction(
+                  `Supprimer « ${award.data!.title} » ?`,
+                  'Le trophée et tous ses votes seront définitivement supprimés.',
+                  () => remove.mutate(awardId, { onSuccess: onDeleted })
+                )
+              }
+              disabled={remove.isPending}
+              style={[styles.close, { borderColor: tokens.errorText }]}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.closeText, { color: tokens.errorText, fontFamily: fonts.body }]}>
+                {remove.isPending ? 'Suppression…' : 'Supprimer ce trophée'}
+              </Text>
+            </Pressable>
+            {remove.error ? (
+              <Text style={[styles.error, { color: tokens.errorText, fontFamily: fonts.body }]}>
+                {toErrorMessage(remove.error)}
+              </Text>
+            ) : null}
+          </View>
         ) : null
       }
     />
@@ -270,4 +319,5 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   closeText: { fontSize: 14, fontWeight: '700' },
+  adminActions: { marginTop: 8 },
 });

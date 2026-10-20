@@ -154,6 +154,7 @@ function AppNavigator({ userId }: { userId: string }) {
           <AwardVoteScreen
             awardId={props.route.params.awardId}
             leagueId={props.route.params.leagueId}
+            onDeleted={() => props.navigation.goBack()}
           />
         )}
       </AppStack.Screen>

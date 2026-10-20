@@ -20,8 +20,10 @@ export const AWARD_CATALOG: { type: AwardType; title: string; blurb: string }[] 
 export type SeasonAward = {
   id: string;
   season_id: string;
-  type: AwardType;
+  /** Un des types du catalogue, ou 'custom' pour un trophée créé par l'admin (migration 008). */
+  type: AwardType | 'custom' | string;
   title: string;
+  description?: string | null;
   is_open: boolean;
   created_at: string;
 };
@@ -44,30 +46,22 @@ export async function fetchSeasonAwards(seasonId: string): Promise<SeasonAward[]
   return (data ?? []) as SeasonAward[];
 }
 
+/** Ajoute les trophées classiques manquants à la saison (les existants sont conservés). */
 export async function openSeasonAwards(seasonId: string, playerIds: string[]) {
+  const existing = await fetchSeasonAwards(seasonId);
   const created: SeasonAward[] = [];
   for (const cat of AWARD_CATALOG) {
+    if (existing.some((a) => a.type === cat.type)) continue;
     const { data: award, error } = await supabase
       .from('season_awards')
-      .upsert(
-        {
-          season_id: seasonId,
-          type: cat.type,
-          title: cat.title,
-          is_open: true,
-        },
-        { onConflict: 'season_id,type' }
-      )
+      .insert({ season_id: seasonId, type: cat.type, title: cat.title, is_open: true })
       .select()
       .single();
     if (error) throw error;
     created.push(award as SeasonAward);
 
     if (playerIds.length) {
-      const rows = playerIds.map((player_id) => ({
-        award_id: award.id,
-        player_id,
-      }));
+      const rows = playerIds.map((player_id) => ({ award_id: award.id, player_id }));
       const { error: nomErr } = await supabase.from('award_nominations').upsert(rows, {
         onConflict: 'award_id,player_id',
         ignoreDuplicates: true,
@@ -180,4 +174,41 @@ export async function voteForPlayer(awardId: string, playerId: string): Promise<
     p_player_id: playerId,
   });
   if (error) throw error;
+}
+
+/** Admin : crée un trophée au nom libre (migration 008). */
+export async function createAward(
+  seasonId: string,
+  title: string,
+  description?: string
+): Promise<SeasonAward> {
+  const { data, error } = await supabase
+    .from('season_awards')
+    .insert({
+      season_id: seasonId,
+      type: 'custom',
+      title: title.trim(),
+      description: description?.trim() || null,
+      is_open: true,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as SeasonAward;
+}
+
+/** Admin : supprime un trophée et ses votes (cascade côté base). */
+export async function deleteAward(awardId: string): Promise<void> {
+  const { error, count } = await supabase
+    .from('season_awards')
+    .delete({ count: 'exact' })
+    .eq('id', awardId);
+  if (error) throw error;
+  // RLS : une suppression refusée ne renvoie pas d'erreur, juste 0 ligne.
+  if (count === 0) throw new Error('Suppression refusée : seul l’admin de la ligue peut supprimer un trophée.');
+}
+
+/** Description affichée : celle saisie par l'admin, sinon celle du catalogue. */
+export function awardBlurb(award: Pick<SeasonAward, 'type' | 'description'>): string | null {
+  return award.description || AWARD_CATALOG.find((c) => c.type === award.type)?.blurb || null;
 }

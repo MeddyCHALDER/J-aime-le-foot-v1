@@ -120,3 +120,26 @@ export function useCloseAward(seasonId: string | undefined) {
     },
   });
 }
+
+export function useCreateAward(seasonId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ title, description }: { title: string; description?: string }) =>
+      api.createAward(seasonId!, title, description),
+    onSuccess: () => {
+      if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
+    },
+  });
+}
+
+export function useDeleteAward(seasonId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (awardId: string) => api.deleteAward(awardId),
+    onSuccess: (_, awardId) => {
+      qc.removeQueries({ queryKey: voteKeys.award(awardId) });
+      qc.invalidateQueries({ queryKey: voteKeys.minePrefix });
+      if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
+    },
+  });
+}

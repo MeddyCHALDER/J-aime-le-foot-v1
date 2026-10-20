@@ -1,12 +1,26 @@
-import React from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  Platform,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts } from '../../theme/brand';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../auth/hooks';
 import { useLeagueRoster } from '../members/hooks';
-import { AWARD_CATALOG } from '../awards/seasonAwardsApi';
-import { useMyVotes, useOpenSeasonAwards, useSeasonAwards } from '../awards/seasonAwardsHooks';
+import { awardBlurb } from '../awards/seasonAwardsApi';
+import {
+  useCreateAward,
+  useMyVotes,
+  useOpenSeasonAwards,
+  useSeasonAwards,
+} from '../awards/seasonAwardsHooks';
 import { EmptyState, LoadingState, ErrorState } from '../../ui';
 import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
@@ -18,7 +32,7 @@ interface VotesTabScreenProps {
 /** Liste des trophées : un clic ouvre la page de vote du trophée. */
 export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
   const insets = useSafeAreaInsets();
-  const { tokens } = useAppTheme();
+  const { tokens, scheme } = useAppTheme();
   const { user } = useAuth();
   const { league, season, isLoading, error, refetch } = useHomeContext();
   const awards = useSeasonAwards(season?.id);
@@ -28,10 +42,24 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
     user?.id
   );
   const openAwards = useOpenSeasonAwards();
+  const createAward = useCreateAward(season?.id);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
 
   const isAdmin = !!user?.id && !!league && user.id === league.created_by;
   const nameOf = (playerId: string) =>
     roster.data?.find((p) => p.player_id === playerId)?.display_name ?? 'Joueur';
+
+  const inputColors = [
+    {
+      backgroundColor: tokens.ink,
+      borderColor: tokens.line,
+      color: tokens.text,
+      fontFamily: fonts.body,
+    },
+    Platform.OS === 'web' ? ({ outlineStyle: 'none', colorScheme: scheme } as object) : null,
+  ];
 
   if (isLoading || awards.isLoading) return <LoadingState message="Chargement des votes…" />;
   if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
@@ -82,40 +110,21 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
       {header}
 
       {list.length === 0 ? (
-        <View>
-          <EmptyState
-            title="Votes pas encore ouverts"
-            message={
-              isAdmin
-                ? 'Ouvre les votes : chaque joueur de la ligue pourra voter pour les trophées.'
-                : 'L’admin ouvre les votes en fin de saison.'
-            }
-          />
-          {isAdmin ? (
-            <Pressable
-              onPress={() => openAwards.mutate({ seasonId: season.id, playerIds: [] })}
-              disabled={openAwards.isPending}
-              style={[styles.primary, { backgroundColor: tokens.lime }]}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.primaryText, { color: tokens.onLime, fontFamily: fonts.body }]}>
-                {openAwards.isPending ? 'Ouverture…' : 'Ouvrir les votes'}
-              </Text>
-            </Pressable>
-          ) : null}
-          {openAwards.error ? (
-            <Text style={[styles.error, { color: tokens.errorText, fontFamily: fonts.body }]}>
-              {toErrorMessage(openAwards.error)}
-            </Text>
-          ) : null}
-        </View>
+        <EmptyState
+          title="Aucun trophée pour l’instant"
+          message={
+            isAdmin
+              ? 'Crée les trophées de la saison avec tes propres noms, ou pars des classiques.'
+              : 'L’admin crée les trophées de la saison.'
+          }
+        />
       ) : (
         <>
           <Text style={[styles.progress, { color: tokens.muted2, fontFamily: fonts.body }]}>
             {voted}/{list.length} trophées votés
           </Text>
           {list.map((award) => {
-            const cat = AWARD_CATALOG.find((c) => c.type === award.type);
+            const blurb = awardBlurb(award);
             const choice = myVotes.data?.[award.id];
             return (
               <Pressable
@@ -129,9 +138,9 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                   <Text style={[styles.cardTitle, { color: tokens.text, fontFamily: fonts.display }]}>
                     {award.title}
                   </Text>
-                  {cat ? (
+                  {blurb ? (
                     <Text style={[styles.cardSub, { color: tokens.muted, fontFamily: fonts.body }]}>
-                      {cat.blurb}
+                      {blurb}
                     </Text>
                   ) : null}
                   <Text
@@ -158,6 +167,78 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
           })}
         </>
       )}
+      {isAdmin ? (
+        <View style={[styles.adminBox, { borderColor: tokens.line, backgroundColor: tokens.surface }]}>
+          {formOpen || list.length === 0 ? (
+            <>
+              <Text style={[styles.adminTitle, { color: tokens.lime, fontFamily: fonts.body }]}>
+                Nouveau trophée
+              </Text>
+              <TextInput
+                value={newTitle}
+                onChangeText={setNewTitle}
+                placeholder="Nom du trophée (ex. Meilleur tacle)"
+                placeholderTextColor={tokens.placeholder}
+                maxLength={60}
+                accessibilityLabel="Nom du trophée"
+                style={[styles.input, inputColors]}
+              />
+              <TextInput
+                value={newDesc}
+                onChangeText={setNewDesc}
+                placeholder="Description (optionnel)"
+                placeholderTextColor={tokens.placeholder}
+                maxLength={120}
+                accessibilityLabel="Description du trophée"
+                style={[styles.input, inputColors]}
+              />
+              <Pressable
+                onPress={async () => {
+                  if (!newTitle.trim()) return;
+                  await createAward.mutateAsync({ title: newTitle, description: newDesc });
+                  setNewTitle('');
+                  setNewDesc('');
+                  setFormOpen(false);
+                }}
+                disabled={!newTitle.trim() || createAward.isPending}
+                style={[
+                  styles.primary,
+                  { backgroundColor: tokens.lime },
+                  (!newTitle.trim() || createAward.isPending) && { opacity: 0.5 },
+                ]}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.primaryText, { color: tokens.onLime, fontFamily: fonts.body }]}>
+                  {createAward.isPending ? 'Création…' : 'Créer le trophée'}
+                </Text>
+              </Pressable>
+              {list.length === 0 ? (
+                <Pressable
+                  onPress={() => openAwards.mutate({ seasonId: season.id, playerIds: [] })}
+                  disabled={openAwards.isPending}
+                  style={[styles.secondary, { borderColor: tokens.line }]}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.secondaryText, { color: tokens.text, fontFamily: fonts.body }]}>
+                    {openAwards.isPending ? 'Ajout…' : 'Ajouter les trophées classiques'}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {createAward.error || openAwards.error ? (
+                <Text style={[styles.error, { color: tokens.errorText, fontFamily: fonts.body }]}>
+                  {toErrorMessage(createAward.error ?? openAwards.error)}
+                </Text>
+              ) : null}
+            </>
+          ) : (
+            <Pressable onPress={() => setFormOpen(true)} accessibilityRole="button" style={styles.addRow}>
+              <Text style={[styles.addText, { color: tokens.lime, fontFamily: fonts.body }]}>
+                + Ajouter un trophée
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -198,4 +279,31 @@ const styles = StyleSheet.create({
   },
   primaryText: { fontSize: 15, fontWeight: '700' },
   error: { marginTop: 10, fontSize: 13 },
+  adminBox: { borderWidth: 1, borderRadius: 16, padding: 16, marginTop: 8 },
+  adminTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  input: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  secondary: {
+    height: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  secondaryText: { fontSize: 14, fontWeight: '700' },
+  addRow: { alignItems: 'center', paddingVertical: 4 },
+  addText: { fontSize: 15, fontWeight: '700' },
 });
