@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { TextInput, Button, Text } from 'react-native-paper';
 import { Screen } from '../../../ui';
 import { useCreateMatch } from '../hooks';
+import { KickoffPicker } from './KickoffPicker';
 import { brand } from '../../../theme/brand';
 
 interface CreateMatchScreenProps {
@@ -20,9 +21,10 @@ export function CreateMatchScreen({
   onCancel,
 }: CreateMatchScreenProps) {
   const defaultKickoff = (() => {
+    // Ce soir 20:00, ou demain 20:00 s'il est déjà tard
     const d = new Date();
-    d.setMinutes(0, 0, 0);
-    d.setHours(d.getHours() + 1);
+    if (d.getHours() >= 19) d.setDate(d.getDate() + 1);
+    d.setHours(20, 0, 0, 0);
     // datetime-local en heure locale (toISOString serait en UTC, puis relu en local)
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -41,7 +43,7 @@ export function CreateMatchScreen({
     }
     const date = new Date(kickoffAt);
     if (isNaN(date.getTime())) {
-      setError('Date invalide. Format : 2026-10-20T18:00');
+      setError('Choisis une date et une heure.');
       return;
     }
     setError(null);
@@ -61,17 +63,7 @@ export function CreateMatchScreen({
   return (
     <Screen title="Nouveau match" subtitle="Quand et où. Les joueurs s’inscrivent ensuite depuis la fiche du match.">
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TextInput
-        label="Date et heure *"
-        value={kickoffAt}
-        onChangeText={setKickoffAt}
-        mode="outlined"
-        placeholder="2026-10-20T18:00"
-        style={styles.input}
-      />
-      <Text variant="bodySmall" style={styles.hint}>
-        Format : AAAA-MM-JJTHH:mm (ex. 2026-10-20T18:00)
-      </Text>
+      <KickoffPicker value={kickoffAt} onChange={setKickoffAt} />
       <TextInput
         label="Lieu (optionnel)"
         value={location}
@@ -99,6 +91,5 @@ export function CreateMatchScreen({
 const styles = StyleSheet.create({
   input: { marginBottom: 12 },
   button: { marginTop: 8 },
-  hint: { opacity: 0.7, marginBottom: 12 },
   error: { color: brand.errorText, backgroundColor: brand.errorBg, padding: 12, borderRadius: 4, marginBottom: 12 },
 });
