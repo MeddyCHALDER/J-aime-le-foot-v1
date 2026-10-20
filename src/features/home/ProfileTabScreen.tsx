@@ -76,7 +76,7 @@ export function ProfileTabScreen({
         <Text style={[styles.cardLabel, { color: tokens.muted2, fontFamily: fonts.body }]}>
           Réglages
         </Text>
-        <Pressable onPress={toggleScheme} style={styles.rowBtn}>
+        <Pressable accessibilityRole="button" onPress={toggleScheme} style={styles.rowBtn}>
           <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
             Thème {scheme === 'dark' ? 'sombre' : 'clair'}
           </Text>
@@ -96,13 +96,13 @@ export function ProfileTabScreen({
       </View>
 
       <View style={[styles.card, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>
-        <Pressable onPress={onEditProfile} style={styles.rowBtn}>
+        <Pressable accessibilityRole="button" onPress={onEditProfile} style={styles.rowBtn}>
           <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
             Modifier mon profil
           </Text>
         </Pressable>
         {!league ? (
-          <Pressable onPress={onJoinLeague} style={styles.rowBtn}>
+          <Pressable accessibilityRole="button" onPress={onJoinLeague} style={styles.rowBtn}>
             <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
               Rejoindre une ligue
             </Text>
@@ -137,14 +137,14 @@ export function ProfileTabScreen({
             {toErrorMessage(leave.error)}
           </Text>
         ) : null}
-        <Pressable onPress={onCreateLeague} style={styles.rowBtn}>
+        <Pressable accessibilityRole="button" onPress={onCreateLeague} style={styles.rowBtn}>
           <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
             Créer une ligue
           </Text>
         </Pressable>
       </View>
 
-      <Pressable
+      <Pressable accessibilityRole="button"
         onPress={() => signOut()}
         style={[styles.logout, { borderColor: tokens.line }]}
       >

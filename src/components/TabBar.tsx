@@ -1,7 +1,8 @@
-import React from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts } from '../theme/brand';
+import { fonts, useNativeDriver } from '../theme/brand';
+import { dur } from '../lib/motion';
 import { useAppTheme } from '../theme/ThemeContext';
 import { IconMatch, IconProfile, IconVote } from './TabIcons';
 
@@ -40,6 +41,29 @@ export function useTabBarHeight() {
     return TAB_ITEM_HEIGHT + Math.max(TAB_PAD_EXTRA, safe);
   }
   return TAB_ITEM_HEIGHT + Math.max(TAB_PAD_EXTRA, insets.bottom);
+}
+
+/** Icône d'onglet : petit « pop » quand l'onglet devient actif. */
+function TabIcon({ active, children }: { active: boolean; children: React.ReactNode }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (!active || dur(1) === 0) return;
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.18, duration: 120, useNativeDriver }),
+      Animated.spring(scale, { toValue: 1, friction: 4, tension: 160, useNativeDriver }),
+    ]).start();
+  }, [active, scale]);
+  return (
+    // translateY -1 (onglet actif) et le « pop » dans un seul transform, l'un n'écrase pas l'autre
+    <Animated.View style={[styles.iconWrap, { transform: [{ translateY: active ? -1 : 0 }, { scale }] }]}>
+      {children}
+    </Animated.View>
+  );
 }
 
 interface TabBarProps {
@@ -93,9 +117,9 @@ export function TabBar({ active, onChange }: TabBarProps) {
             accessibilityState={{ selected: on }}
             accessibilityLabel={label}
           >
-            <View style={[styles.iconWrap, on && styles.iconActive]}>
+            <TabIcon active={on}>
               <Icon color={iconColor} />
-            </View>
+            </TabIcon>
             <Text
               style={[
                 styles.label,
@@ -134,9 +158,6 @@ const styles = StyleSheet.create({
     height: 24,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconActive: {
-    transform: [{ translateY: -1 }],
   },
   label: {
     fontSize: 10,

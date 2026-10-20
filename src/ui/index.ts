@@ -6,3 +6,4 @@ export { EntityCard } from './EntityCard';
 export { FutCard } from './FutCard';
 export { LoadingState } from './LoadingState';
 export { ErrorState } from './ErrorState';
+export { PageTransition, FadeSwap, Appear } from './Motion';

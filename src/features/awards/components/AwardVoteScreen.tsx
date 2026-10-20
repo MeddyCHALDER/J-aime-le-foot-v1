@@ -23,7 +23,7 @@ import {
   useMyVotes,
   useVoteForPlayer,
 } from '../seasonAwardsHooks';
-import { ErrorState, LoadingState } from '../../../ui';
+import { ErrorState, LoadingState, Appear } from '../../../ui';
 import { toErrorMessage } from '../../../lib/errors';
 import { confirmAction } from '../../../lib/confirm';
 
@@ -99,6 +99,7 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
     const votes = tally.data?.[item.player_id] ?? 0;
     const disabled = !isOpen || me || vote.isPending;
     return (
+      <Appear index={index}>
       <Pressable
         onPress={() => castVote(item.player_id)}
         disabled={disabled}
@@ -136,6 +137,7 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
           <Text style={[styles.mine, { color: tokens.lime, fontFamily: fonts.body }]}>Ton vote</Text>
         ) : null}
       </Pressable>
+      </Appear>
     );
   };
 

@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { queryClient } from './src/lib/queryClient';
 import { registerPwa } from './src/lib/registerPwa';
 import { initInstallPrompt } from './src/lib/install';
+import { installPressFeedback } from './src/lib/pressFeedback';
 import { loadBrandFonts } from './src/lib/brandFonts';
 import './src/lib/motion';
 import { AppThemeProvider, useAppTheme } from './src/theme/ThemeContext';
@@ -16,6 +17,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 registerPwa();
 initInstallPrompt();
 loadBrandFonts();
+installPressFeedback();
 
 function NavigationRoot() {
   const { scheme, tokens } = useAppTheme();

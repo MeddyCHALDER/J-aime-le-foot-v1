@@ -22,7 +22,7 @@ import {
   useOpenSeasonAwards,
   useSeasonAwards,
 } from '../awards/seasonAwardsHooks';
-import { EmptyState, LoadingState, ErrorState } from '../../ui';
+import { EmptyState, LoadingState, ErrorState, Appear } from '../../ui';
 import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
 
@@ -124,13 +124,13 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
           <Text style={[styles.progress, { color: tokens.muted2, fontFamily: fonts.body }]}>
             {voted}/{list.length} trophées votés
           </Text>
-          {list.map((award) => {
+          {list.map((award, i) => {
             const blurb = awardBlurb(award);
             const choice = myVotes.data?.[award.id];
             const chosen = choice ? playerOf(choice) : undefined;
             return (
+              <Appear key={award.id} index={i}>
               <Pressable
-                key={award.id}
                 onPress={() => onAwardPress(award.id, league.id)}
                 accessibilityRole="button"
                 accessibilityLabel={`${award.title}, ${choice ? `ton vote : ${nameOf(choice)}` : 'pas encore voté'}`}
@@ -174,6 +174,7 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                   </Text>
                 </View>
               </Pressable>
+              </Appear>
             );
           })}
         </>

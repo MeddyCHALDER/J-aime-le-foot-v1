@@ -8,6 +8,7 @@ import { ProfileTabScreen } from './ProfileTabScreen';
 import { useNotificationOpener } from '../notifications/hooks';
 import { useAuth } from '../auth/hooks';
 import { InstallGuide } from '../onboarding/InstallGuide';
+import { FadeSwap } from '../../ui/Motion';
 import { installGuideSeen, isStandalone, markInstallGuideSeen } from '../../lib/install';
 
 interface MainTabsScreenProps {
@@ -66,6 +67,8 @@ export function MainTabsScreen({
             : { paddingBottom: tabBarHeight },
         ]}
       >
+        {/* key = onglet : l'animation rejoue à chaque changement d'onglet */}
+        <FadeSwap key={tab}>
         {tab === 'matches' ? (
           <MatchesTabScreen
             onMatchPress={onMatchPress}
@@ -83,6 +86,7 @@ export function MainTabsScreen({
             onOpenInstallGuide={() => setInstallGuide(true)}
           />
         ) : null}
+        </FadeSwap>
       </View>
       <View style={[styles.tabDock, fixedDock && styles.tabDockFixed]} pointerEvents="box-none">
         <TabBar active={tab} onChange={setTab} />

@@ -10,7 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fonts } from '../../theme/brand';
 import { useAppTheme } from '../../theme/ThemeContext';
-import { LoadingState, ErrorState, EmptyState } from '../../ui';
+import { LoadingState, ErrorState, EmptyState, Appear } from '../../ui';
 import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
 import { useAuth } from '../auth/hooks';
@@ -80,7 +80,7 @@ export function MatchesTabScreen({
           message="Crée une ligue ou rejoins avec un code d’invitation."
         />
         <View style={styles.row}>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={onJoinLeague}
             style={[styles.btn, { backgroundColor: tokens.lime }]}
           >
@@ -88,7 +88,7 @@ export function MatchesTabScreen({
               Rejoindre
             </Text>
           </Pressable>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={onCreateLeague}
             style={[styles.btnOutline, { borderColor: tokens.line }]}
           >
@@ -130,7 +130,7 @@ export function MatchesTabScreen({
             </View>
 
             {featured ? (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => onMatchPress(featured.id)}
                 style={[styles.featured, { backgroundColor: tokens.surface, borderColor: tokens.line }]}
               >
@@ -161,7 +161,7 @@ export function MatchesTabScreen({
             )}
 
             {season && isAdmin ? (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => onCreateMatch(league.id, season.id)}
                 // styles.btn (flex: 1, base 0) est pensé pour une rangée ; en colonne il écrasait la hauteur.
                 style={[
@@ -188,8 +188,9 @@ export function MatchesTabScreen({
             ) : null}
           </View>
         }
-        renderItem={({ item }: { item: Match }) => (
-          <Pressable
+        renderItem={({ item, index }: { item: Match; index: number }) => (
+          <Appear index={index}>
+          <Pressable accessibilityRole="button"
             onPress={() => onMatchPress(item.id)}
             style={[styles.rowCard, { backgroundColor: tokens.surface, borderColor: tokens.line }]}
           >
@@ -212,6 +213,7 @@ export function MatchesTabScreen({
               </Text>
             )}
           </Pressable>
+          </Appear>
         )}
       />
     </View>

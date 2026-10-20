@@ -19,6 +19,7 @@ import { AwardVoteScreen } from '../features/awards/components/AwardVoteScreen';
 import { PlayerProfileScreen } from '../features/profiles/components/PlayerProfileScreen';
 import { LeagueDetailScreen } from '../features/leagues/components/LeagueDetailScreen';
 import { brand } from '../theme/brand';
+import { PageTransition } from '../ui/Motion';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppStack = createNativeStackNavigator<AppStackParamList>();
@@ -67,6 +68,8 @@ function AuthNavigator() {
 function AppNavigator({ userId }: { userId: string }) {
   return (
     <AppStack.Navigator
+      // Chaque page poussée arrive en glissant (native-stack n'anime pas les pages sur le web)
+      screenLayout={({ children }) => <PageTransition>{children}</PageTransition>}
       screenOptions={{
         headerShown: true,
         headerTintColor: brand.lime,
