@@ -12,6 +12,7 @@ interface MainTabsScreenProps {
   onJoinLeague: () => void;
   onCreateMatch: (leagueId: string, seasonId: string) => void;
   onEditProfile: () => void;
+  onAwardPress: (awardId: string, leagueId: string) => void;
 }
 
 export function MainTabsScreen({
@@ -20,6 +21,7 @@ export function MainTabsScreen({
   onJoinLeague,
   onCreateMatch,
   onEditProfile,
+  onAwardPress,
 }: MainTabsScreenProps) {
   const [tab, setTab] = useState<PlayerTab>('matches');
   const { tokens } = useAppTheme();
@@ -49,7 +51,7 @@ export function MainTabsScreen({
             onCreateMatch={onCreateMatch}
           />
         ) : null}
-        {tab === 'votes' ? <VotesTabScreen /> : null}
+        {tab === 'votes' ? <VotesTabScreen onAwardPress={onAwardPress} /> : null}
         {tab === 'profile' ? (
           <ProfileTabScreen
             onEditProfile={onEditProfile}

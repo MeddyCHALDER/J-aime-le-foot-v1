@@ -33,10 +33,23 @@ function normalizeSeason(row: Record<string, unknown>): Season {
   };
 }
 
+/** Ligues dont l'utilisateur est membre (toutes si league_members n'existe pas encore). */
 export async function fetchLeagues(): Promise<League[]> {
   const { data, error } = await supabase.from('leagues').select('*').order('name');
   if (error) throw error;
-  return (data ?? []).map((r) => normalizeLeague(r as Record<string, unknown>));
+  const leagues = (data ?? []).map((r) => normalizeLeague(r as Record<string, unknown>));
+
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (!uid) return leagues;
+  const { data: mine, error: memErr } = await supabase
+    .from('league_members')
+    .select('league_id')
+    .eq('player_id', uid);
+  // Table absente (migration 006 non passée) : on garde l'ancien comportement.
+  if (memErr) return leagues;
+  const ids = new Set((mine ?? []).map((m) => String(m.league_id)));
+  return leagues.filter((l) => ids.has(l.id) || l.created_by === uid);
 }
 
 export async function fetchLeagueById(id: string): Promise<League | null> {

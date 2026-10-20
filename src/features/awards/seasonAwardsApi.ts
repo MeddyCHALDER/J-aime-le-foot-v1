@@ -129,3 +129,55 @@ export async function closeAward(awardId: string) {
   const { error } = await supabase.from('season_awards').update({ is_open: false }).eq('id', awardId);
   if (error) throw error;
 }
+
+export async function fetchAward(awardId: string): Promise<SeasonAward | null> {
+  const { data, error } = await supabase.from('season_awards').select('*').eq('id', awardId).maybeSingle();
+  if (error) throw error;
+  return (data as SeasonAward | null) ?? null;
+}
+
+/** Joueur choisi par l'utilisateur pour chaque trophée : { awardId: playerId }. */
+export async function fetchMyVotes(awardIds: string[], voterId: string): Promise<Record<string, string>> {
+  if (awardIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('award_votes')
+    .select('award_id, nomination:award_nominations(player_id)')
+    .eq('voter_id', voterId)
+    .in('award_id', awardIds);
+  if (error) throw error;
+  const out: Record<string, string> = {};
+  for (const row of (data ?? []) as Array<{
+    award_id: string;
+    nomination: { player_id: string } | { player_id: string }[] | null;
+  }>) {
+    const n = Array.isArray(row.nomination) ? row.nomination[0] : row.nomination;
+    if (n?.player_id) out[row.award_id] = n.player_id;
+  }
+  return out;
+}
+
+/** Voix par joueur pour un trophée : { playerId: nombre }. */
+export async function fetchAwardTally(awardId: string): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('award_votes')
+    .select('nomination:award_nominations(player_id)')
+    .eq('award_id', awardId);
+  if (error) throw error;
+  const out: Record<string, number> = {};
+  for (const row of (data ?? []) as Array<{
+    nomination: { player_id: string } | { player_id: string }[] | null;
+  }>) {
+    const n = Array.isArray(row.nomination) ? row.nomination[0] : row.nomination;
+    if (n?.player_id) out[n.player_id] = (out[n.player_id] ?? 0) + 1;
+  }
+  return out;
+}
+
+/** Vote pour n'importe quel joueur de la ligue (nomination créée à la volée, migration 006). */
+export async function voteForPlayer(awardId: string, playerId: string): Promise<void> {
+  const { error } = await supabase.rpc('cast_award_vote', {
+    p_award_id: awardId,
+    p_player_id: playerId,
+  });
+  if (error) throw error;
+}

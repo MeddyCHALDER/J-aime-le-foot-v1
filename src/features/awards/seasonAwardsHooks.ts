@@ -58,3 +58,65 @@ export function useCastAwardVote() {
     },
   });
 }
+
+export const voteKeys = {
+  award: (awardId: string) => ['season_award', awardId] as const,
+  mine: (voterId: string, awardIds: string[]) => ['award_my_votes', voterId, ...awardIds] as const,
+  minePrefix: ['award_my_votes'] as const,
+  tally: (awardId: string) => ['award_tally', awardId] as const,
+};
+
+export function useAward(awardId: string | undefined) {
+  return useQuery({
+    queryKey: voteKeys.award(awardId ?? ''),
+    queryFn: () => api.fetchAward(awardId!),
+    enabled: !!awardId,
+  });
+}
+
+export function useMyVotes(awardIds: string[], voterId: string | undefined) {
+  return useQuery({
+    queryKey: voteKeys.mine(voterId ?? '', awardIds),
+    queryFn: () => api.fetchMyVotes(awardIds, voterId!),
+    enabled: !!voterId && awardIds.length > 0,
+  });
+}
+
+export function useAwardTally(awardId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: voteKeys.tally(awardId ?? ''),
+    queryFn: () => api.fetchAwardTally(awardId!),
+    enabled: !!awardId && enabled,
+  });
+}
+
+/** Vote pour un joueur ; le choix s'affiche tout de suite (mise à jour optimiste). */
+export function useVoteForPlayer(awardId: string, voterId: string | undefined) {
+  const qc = useQueryClient();
+  const key = voteKeys.mine(voterId ?? '', [awardId]);
+  return useMutation({
+    mutationFn: (playerId: string) => api.voteForPlayer(awardId, playerId),
+    onMutate: async (playerId) => {
+      await qc.cancelQueries({ queryKey: key });
+      const previous = qc.getQueryData<Record<string, string>>(key);
+      qc.setQueryData<Record<string, string>>(key, { ...previous, [awardId]: playerId });
+      return { previous };
+    },
+    onError: (_e, _v, ctx) => qc.setQueryData(key, ctx?.previous),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: voteKeys.minePrefix });
+      qc.invalidateQueries({ queryKey: voteKeys.tally(awardId) });
+    },
+  });
+}
+
+export function useCloseAward(seasonId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (awardId: string) => api.closeAward(awardId),
+    onSuccess: (_, awardId) => {
+      qc.invalidateQueries({ queryKey: voteKeys.award(awardId) });
+      if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
+    },
+  });
+}

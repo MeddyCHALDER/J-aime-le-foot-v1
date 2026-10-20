@@ -37,3 +37,17 @@ export async function removeLeagueMember(leagueId: string, playerId: string): Pr
     .eq('player_id', playerId);
   if (error) throw error;
 }
+
+export interface RosterPlayer {
+  player_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  role: 'admin' | 'player';
+}
+
+/** Tous les joueurs d'une ligue, noms compris (fonction league_roster, migration 006). */
+export async function fetchLeagueRoster(leagueId: string): Promise<RosterPlayer[]> {
+  const { data, error } = await supabase.rpc('league_roster', { p_league_id: leagueId });
+  if (error) throw error;
+  return (data ?? []) as RosterPlayer[];
+}

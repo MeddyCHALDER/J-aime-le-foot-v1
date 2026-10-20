@@ -3,7 +3,16 @@ import * as api from './api';
 
 export const membersKeys = {
   byLeague: (leagueId: string) => ['league_members', leagueId] as const,
+  roster: (leagueId: string) => ['league_roster', leagueId] as const,
 };
+
+export function useLeagueRoster(leagueId: string | undefined) {
+  return useQuery({
+    queryKey: membersKeys.roster(leagueId ?? ''),
+    queryFn: () => api.fetchLeagueRoster(leagueId!),
+    enabled: !!leagueId,
+  });
+}
 
 export function useLeagueMembers(leagueId: string | undefined) {
   return useQuery({

@@ -12,6 +12,7 @@ export type AppStackParamList = {
   CreateSeason: { leagueId: string };
   CreateMatch: { leagueId: string; seasonId: string };
   MatchDetail: { matchId: string };
+  AwardVote: { awardId: string; leagueId: string };
   PlayerProfile: { playerId: string };
   LeagueDetail: { leagueId: string };
 };
