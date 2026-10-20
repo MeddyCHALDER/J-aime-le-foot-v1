@@ -13,7 +13,7 @@ import { useAppTheme } from '../../../theme/ThemeContext';
 import { useAuth } from '../../auth/hooks';
 import { useLeagueRoster } from '../../members/hooks';
 import { MiniPlayerCard } from '../../cards/MiniPlayerCard';
-import type { RosterPlayer } from '../../members/api';
+import { isActivePlayer, type RosterPlayer } from '../../members/api';
 import { awardBlurb } from '../seasonAwardsApi';
 import {
   useAward,
@@ -70,7 +70,10 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
 
   const players = useMemo(() => {
     const q = normalize(query);
-    const list = (roster.data ?? []).filter((p) => !q || normalize(p.display_name).includes(q));
+    // Joueurs en attente ou suspendus : pas de vote pour eux
+    const list = (roster.data ?? []).filter(
+      (p) => isActivePlayer(p) && (!q || normalize(p.display_name).includes(q))
+    );
     if (!isOpen && tally.data) {
       return [...list].sort((a, b) => (tally.data[b.player_id] ?? 0) - (tally.data[a.player_id] ?? 0));
     }

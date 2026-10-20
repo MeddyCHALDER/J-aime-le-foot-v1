@@ -16,6 +16,7 @@ import { CreateSeasonScreen } from '../features/leagues/components/CreateSeasonS
 import { CreateMatchScreen } from '../features/matches/components/CreateMatchScreen';
 import { MatchDetailScreen } from '../features/matches/components/MatchDetailScreen';
 import { AwardVoteScreen } from '../features/awards/components/AwardVoteScreen';
+import { LeagueMembersScreen } from '../features/members/LeagueMembersScreen';
 import { PlayerProfileScreen } from '../features/profiles/components/PlayerProfileScreen';
 import { LeagueDetailScreen } from '../features/leagues/components/LeagueDetailScreen';
 import { brand } from '../theme/brand';
@@ -91,6 +92,7 @@ function AppNavigator({ userId }: { userId: string }) {
             onAwardPress={(awardId, leagueId) =>
               props.navigation.navigate('AwardVote', { awardId, leagueId })
             }
+            onManagePlayers={(leagueId) => props.navigation.navigate('LeagueMembers', { leagueId })}
           />
         )}
       </AppStack.Screen>
@@ -151,6 +153,9 @@ function AppNavigator({ userId }: { userId: string }) {
       </AppStack.Screen>
       <AppStack.Screen name="MatchDetail" options={{ title: 'Match' }}>
         {(props) => <MatchDetailScreen matchId={props.route.params.matchId} />}
+      </AppStack.Screen>
+      <AppStack.Screen name="LeagueMembers" options={{ title: 'Joueurs' }}>
+        {(props) => <LeagueMembersScreen leagueId={props.route.params.leagueId} />}
       </AppStack.Screen>
       <AppStack.Screen name="AwardVote" options={{ title: 'Vote' }}>
         {(props) => (

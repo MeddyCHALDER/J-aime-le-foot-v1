@@ -11,10 +11,9 @@ import { FifaCard } from '../cards/FifaCard';
 import { LoadingState, ErrorState } from '../../ui';
 import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
-import { useLeaveLeague } from '../members/hooks';
+import { useLeagueRoster, useLeaveLeague } from '../members/hooks';
 import { confirmAction } from '../../lib/confirm';
 import { isStandalone } from '../../lib/install';
-import { InviteCard } from '../leagues/components/InviteCard';
 import { PushToggle } from '../notifications/PushToggle';
 
 interface ProfileTabScreenProps {
@@ -22,6 +21,7 @@ interface ProfileTabScreenProps {
   onJoinLeague: () => void;
   onCreateLeague: () => void;
   onOpenInstallGuide: () => void;
+  onManagePlayers: (leagueId: string) => void;
 }
 
 export function ProfileTabScreen({
@@ -29,6 +29,7 @@ export function ProfileTabScreen({
   onJoinLeague,
   onCreateLeague,
   onOpenInstallGuide,
+  onManagePlayers,
 }: ProfileTabScreenProps) {
   const insets = useSafeAreaInsets();
   const { tokens, scheme, toggleScheme } = useAppTheme();
@@ -37,7 +38,8 @@ export function ProfileTabScreen({
   const { data: card } = usePlayerCard(user?.id, profile?.preferred_position);
   const { league } = useHomeContext();
   const leave = useLeaveLeague();
-  const [showInvite, setShowInvite] = useState(false);
+  const roster = useLeagueRoster(league?.id);
+  const pendingCount = (roster.data ?? []).filter((p) => p.status === 'pending').length;
   // Le gérant ne peut pas quitter sa ligue : elle resterait sans admin.
   const isLeagueAdmin = !!league && !!user?.id && league.created_by === user.id;
 
@@ -139,13 +141,14 @@ export function ProfileTabScreen({
             {toErrorMessage(leave.error)}
           </Text>
         ) : null}
-        {league?.invite_code ? (
-          <Pressable accessibilityRole="button" onPress={() => setShowInvite((v) => !v)} style={styles.rowBtn}>
+        {/* Inviter, accepter, suspendre, retirer : réservé à l'admin de la ligue */}
+        {league && isLeagueAdmin ? (
+          <Pressable accessibilityRole="button" onPress={() => onManagePlayers(league.id)} style={styles.rowBtn}>
             <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
-              Inviter des joueurs
+              Gérer les joueurs et inviter
             </Text>
             <Text style={{ color: tokens.lime, fontFamily: fonts.body, fontWeight: '700' }}>
-              {showInvite ? 'Masquer' : 'Lien'}
+              {pendingCount ? `${pendingCount} demande${pendingCount > 1 ? 's' : ''}` : 'Ouvrir'}
             </Text>
           </Pressable>
         ) : null}
@@ -155,11 +158,6 @@ export function ProfileTabScreen({
           </Text>
         </Pressable>
       </View>
-      {showInvite && league?.invite_code ? (
-        <View style={{ marginBottom: 12 }}>
-          <InviteCard leagueName={league.name} code={league.invite_code} />
-        </View>
-      ) : null}
 
       <Pressable accessibilityRole="button"
         onPress={() => signOut()}

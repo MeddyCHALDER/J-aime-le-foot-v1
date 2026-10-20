@@ -22,6 +22,7 @@ interface MainTabsScreenProps {
   onCreateMatch: (leagueId: string, seasonId: string) => void;
   onEditProfile: () => void;
   onAwardPress: (awardId: string, leagueId: string) => void;
+  onManagePlayers: (leagueId: string) => void;
 }
 
 export function MainTabsScreen({
@@ -31,6 +32,7 @@ export function MainTabsScreen({
   onCreateMatch,
   onEditProfile,
   onAwardPress,
+  onManagePlayers,
 }: MainTabsScreenProps) {
   const [tab, setTab] = useState<PlayerTab>('matches');
   const { tokens } = useAppTheme();
@@ -58,7 +60,7 @@ export function MainTabsScreen({
     join.mutate(code, {
       onSuccess: () => {
         setTab('matches');
-        setJoinBanner({ ok: true, text: 'Bienvenue ! Tu as rejoint la ligue.' });
+        setJoinBanner({ ok: true, text: 'Demande envoyée ! L’admin doit accepter ta venue.' });
       },
       onError: (e) => setJoinBanner({ ok: false, text: toErrorMessage(e) }),
     });
@@ -110,6 +112,7 @@ export function MainTabsScreen({
             onJoinLeague={onJoinLeague}
             onCreateLeague={onCreateLeague}
             onOpenInstallGuide={() => setInstallGuide(true)}
+            onManagePlayers={onManagePlayers}
           />
         ) : null}
         </FadeSwap>

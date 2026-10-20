@@ -58,3 +58,37 @@ export function useLeaveLeague() {
     onSuccess: () => qc.invalidateQueries(),
   });
 }
+
+export function useSetMemberStatus(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ playerId, status }: { playerId: string; status: 'active' | 'suspended' }) =>
+      api.setMemberStatus(leagueId, playerId, status),
+    onSuccess: () => qc.invalidateQueries({ queryKey: membersKeys.roster(leagueId) }),
+  });
+}
+
+export function useRemoveMember(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (playerId: string) => api.kickLeagueMember(leagueId, playerId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: membersKeys.roster(leagueId) }),
+  });
+}
+
+export function useRegenerateInviteCode(leagueId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.regenerateInviteCode(leagueId),
+    // Le code est lu avec la ligue
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
+export function useMyJoinRequests(enabled = true) {
+  return useQuery({
+    queryKey: ['my_join_requests'],
+    queryFn: () => api.fetchMyJoinRequests(),
+    enabled,
+  });
+}

@@ -15,6 +15,7 @@ import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
 import { useAuth } from '../auth/hooks';
 import { AttendanceQuick } from '../attendance/AttendanceQuick';
+import { useLeagueRoster, useMyJoinRequests } from '../members/hooks';
 import type { Match } from '../../types/entities';
 
 function formatDay(iso: string) {
@@ -59,6 +60,9 @@ export function MatchesTabScreen({
   const { user } = useAuth();
   // Seul le gérant de la ligue crée des matchs (RLS côté Supabase).
   const isAdmin = !!user?.id && league?.created_by === user.id;
+  const requests = useMyJoinRequests();
+  const roster = useLeagueRoster(league?.id);
+  const suspended = roster.data?.find((p) => p.player_id === user?.id)?.status === 'suspended';
 
   const rest = useMemo(
     () => matches.filter((m) => m.id !== featured?.id).slice(0, 12),
@@ -75,6 +79,17 @@ export function MatchesTabScreen({
           J&apos;aime le foot
         </Text>
         <Text style={[styles.title, { color: tokens.text, fontFamily: fonts.display }]}>Matchs</Text>
+        {requests.data?.length ? (
+          <View style={[styles.notice, { backgroundColor: tokens.infoBg, borderColor: tokens.lime, marginHorizontal: 22 }]}>
+            <Text style={[styles.noticeTitle, { color: tokens.infoText, fontFamily: fonts.body }]}>
+              Demande en attente
+            </Text>
+            <Text style={[styles.noticeText, { color: tokens.muted, fontFamily: fonts.body }]}>
+              {requests.data.map((r) => r.league_name).join(', ')} : l’admin doit accepter ta venue. Tu
+              verras la ligue dès qu’il l’aura fait.
+            </Text>
+          </View>
+        ) : null}
         <EmptyState
           title="Pas encore de club"
           message="Crée une ligue ou rejoins avec un code d’invitation."
@@ -129,6 +144,18 @@ export function MatchesTabScreen({
               </Text>
             </View>
 
+            {suspended ? (
+              <View style={[styles.notice, { backgroundColor: tokens.errorBg, borderColor: tokens.errorText }]}>
+                <Text style={[styles.noticeTitle, { color: tokens.errorText, fontFamily: fonts.body }]}>
+                  Accès suspendu
+                </Text>
+                <Text style={[styles.noticeText, { color: tokens.muted, fontFamily: fonts.body }]}>
+                  L’admin a suspendu ton accès : tu vois la ligue, mais tu ne peux plus t’inscrire aux
+                  matchs ni voter.
+                </Text>
+              </View>
+            ) : null}
+
             {featured ? (
               <Pressable accessibilityRole="button"
                 onPress={() => onMatchPress(featured.id)}
@@ -148,7 +175,7 @@ export function MatchesTabScreen({
                   <Text style={[styles.score, { color: tokens.text, fontFamily: fonts.display }]}>
                     {featured.home_score} – {featured.away_score}
                   </Text>
-                ) : (
+                ) : suspended ? null : (
                   <AttendanceQuick
                     matchId={featured.id}
                     registrationOpensAt={featured.registration_opens_at}
@@ -285,4 +312,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   btnText: { fontSize: 15, fontWeight: '700' },
+  notice: { borderWidth: 1, borderRadius: 14, padding: 14, marginHorizontal: 0, marginBottom: 4 },
+  noticeTitle: { fontSize: 14, fontWeight: '700' },
+  noticeText: { fontSize: 13, lineHeight: 18, marginTop: 4 },
 });

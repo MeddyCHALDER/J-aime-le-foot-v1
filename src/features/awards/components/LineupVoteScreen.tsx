@@ -16,7 +16,7 @@ import { fonts } from '../../../theme/brand';
 import { useAppTheme } from '../../../theme/ThemeContext';
 import { useAuth } from '../../auth/hooks';
 import { useLeagueRoster } from '../../members/hooks';
-import type { RosterPlayer } from '../../members/api';
+import { isActivePlayer, type RosterPlayer } from '../../members/api';
 import { MiniPlayerCard } from '../../cards/MiniPlayerCard';
 import type { LineupSlots, SeasonAward } from '../seasonAwardsApi';
 import {
@@ -108,6 +108,7 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
     return (roster.data ?? []).filter(
       (p) =>
         p.player_id !== user?.id &&
+        isActivePlayer(p) &&
         (!line || lineOf(p.preferred_position) === line) &&
         (!q || normalize(p.display_name).includes(q))
     );

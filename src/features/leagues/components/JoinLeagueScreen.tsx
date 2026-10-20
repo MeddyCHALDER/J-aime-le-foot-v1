@@ -13,6 +13,7 @@ interface JoinLeagueScreenProps {
 export function JoinLeagueScreen({ onSuccess, onCancel }: JoinLeagueScreenProps) {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const join = useJoinLeagueByCode();
 
   const handleSubmit = async () => {
@@ -23,11 +24,25 @@ export function JoinLeagueScreen({ onSuccess, onCancel }: JoinLeagueScreenProps)
     setError(null);
     try {
       const leagueId = await join.mutateAsync(code);
-      onSuccess(leagueId);
+      // L'admin doit accepter : on confirme l'envoi avant de revenir
+      setSentTo(leagueId);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Impossible de rejoindre cette ligue');
     }
   };
+
+  if (sentTo) {
+    return (
+      <Screen title="Demande envoyée" subtitle="L’admin de la ligue doit accepter ta demande.">
+        <Text style={styles.sent}>
+          Tu verras la ligue, ses matchs et ses votes dès que l’admin t’aura accepté.
+        </Text>
+        <Button mode="contained" onPress={() => onSuccess(sentTo)} style={styles.button}>
+          OK
+        </Button>
+      </Screen>
+    );
+  }
 
   return (
     <Screen
@@ -62,6 +77,7 @@ export function JoinLeagueScreen({ onSuccess, onCancel }: JoinLeagueScreenProps)
 }
 
 const styles = StyleSheet.create({
+  sent: { marginBottom: 12, lineHeight: 20 },
   input: { marginBottom: 12 },
   button: { marginTop: 8 },
   error: { color: brand.errorText, backgroundColor: brand.errorBg, padding: 12, borderRadius: 4, marginBottom: 12 },
