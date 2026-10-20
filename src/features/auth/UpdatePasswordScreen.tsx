@@ -9,9 +9,11 @@ import { AuthSuccessOverlay } from './components/AuthSuccessOverlay';
 
 interface UpdatePasswordScreenProps {
   onDone: () => void;
+  /** Première connexion avec mot de passe provisoire. */
+  firstLogin?: boolean;
 }
 
-export function UpdatePasswordScreen({ onDone }: UpdatePasswordScreenProps) {
+export function UpdatePasswordScreen({ onDone, firstLogin }: UpdatePasswordScreenProps) {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,10 +51,14 @@ export function UpdatePasswordScreen({ onDone }: UpdatePasswordScreenProps) {
   return (
     <View style={{ flex: 1 }}>
       <AuthLayout
-        line1="Nouveau"
-        line2="mot de passe"
-        accent="passe"
-        intro="Choisis un mot de passe solide pour sécuriser ton compte."
+        line1={firstLogin ? 'Choisis' : 'Nouveau'}
+        line2={firstLogin ? 'ton mot de passe' : 'mot de passe'}
+        accent={firstLogin ? 'passe' : 'passe'}
+        intro={
+          firstLogin
+            ? 'Pour sécuriser ton compte admin, remplace le mot de passe provisoire par le tien.'
+            : 'Choisis un mot de passe solide pour sécuriser ton compte.'
+        }
         error={error}
         errorKey={errorKey}
       >

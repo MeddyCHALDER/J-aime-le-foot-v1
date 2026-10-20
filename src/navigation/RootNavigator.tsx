@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import type { AppStackParamList, AuthStackParamList } from './types';
 import { useAuth } from '../features/auth/hooks';
-import { signIn, signUp } from '../features/auth/api';
+import { signIn, signUp, userMustChangePassword } from '../features/auth/api';
 import { LoginScreen } from '../features/auth/LoginScreen';
 import { RegisterScreen } from '../features/auth/RegisterScreen';
 import { ForgotPasswordScreen } from '../features/auth/ForgotPasswordScreen';
@@ -173,9 +173,12 @@ export function RootNavigator() {
     );
   }
 
-  if (passwordRecovery) {
+  const mustChangePassword = userMustChangePassword(user);
+
+  if (passwordRecovery || mustChangePassword) {
     return (
       <UpdatePasswordScreen
+        firstLogin={mustChangePassword && !passwordRecovery}
         onDone={() => {
           clearPasswordRecovery();
         }}

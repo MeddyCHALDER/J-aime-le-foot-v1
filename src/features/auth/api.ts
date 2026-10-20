@@ -34,11 +34,19 @@ export async function requestPasswordReset(email: string) {
   return data as { ok: boolean; id?: string };
 }
 
-/** Définit le nouveau mot de passe après clic sur le lien de recovery. */
+/** Définit le nouveau mot de passe (recovery ou 1ʳᵉ connexion forcée). */
 export async function updatePassword(password: string) {
-  const { data, error } = await supabase.auth.updateUser({ password });
+  const { data, error } = await supabase.auth.updateUser({
+    password,
+    data: { must_change_password: false },
+  });
   if (error) throw error;
   return data.user;
+}
+
+/** Compte provisoire : doit changer le mot de passe avant d’entrer dans l’app. */
+export function userMustChangePassword(user: { user_metadata?: Record<string, unknown> } | null) {
+  return user?.user_metadata?.must_change_password === true;
 }
 
 export function getSession() {
