@@ -21,7 +21,7 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
   const [sheetMsg, setSheetMsg] = useState<string | null>(null);
 
   // Admin = gérant de la ligue (manager_id en legacy, created_by en V1)
-  const { isAdmin } = useMatchAdmin(match?.season_id);
+  const { isAdmin, league } = useMatchAdmin(match?.season_id);
   // Les équipes viennent des inscriptions : l'admin compose parmi les inscrits.
   const { data: attendance = [] } = useAttendance(matchId);
   const homePlayers = attendance.filter((a) => a.status === 'in' && a.team_side === 'home');
@@ -116,7 +116,14 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
         </View>
       </View>
 
-      <AttendancePanel matchId={match.id} locked={played} isAdmin={isAdmin} />
+      <AttendancePanel
+        matchId={match.id}
+        locked={played}
+        isAdmin={isAdmin}
+        kickoffAt={match.kickoff_at}
+        location={match.location}
+        leagueName={league?.name ?? null}
+      />
 
       {videoUrl ? (
         <Button

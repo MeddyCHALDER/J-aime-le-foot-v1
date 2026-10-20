@@ -1,23 +1,35 @@
-import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fonts } from '../../theme/brand';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../auth/hooks';
 import { toErrorMessage } from '../../lib/errors';
 import { AttendanceUnavailableError, type Attendance, type TeamSide } from './api';
 import { useAttendance, useSetMyAttendance, useSetTeamSide } from './hooks';
+import { matchSheetFilename, renderMatchSheetPng, shareOrDownloadPng } from './matchSheet';
 
 interface AttendancePanelProps {
   matchId: string;
   /** Match joué : les inscriptions sont figées. */
   locked: boolean;
   isAdmin: boolean;
+  /** Infos imprimées sur la feuille de match */
+  kickoffAt: string;
+  location: string | null;
+  leagueName: string | null;
 }
 
 const SIDE_LABEL: Record<TeamSide, string> = { home: 'Équipe A', away: 'Équipe B' };
 
 /** « Je viens / je ne viens pas », liste des inscrits et, pour l'admin, composition des équipes. */
-export function AttendancePanel({ matchId, locked, isAdmin }: AttendancePanelProps) {
+export function AttendancePanel({
+  matchId,
+  locked,
+  isAdmin,
+  kickoffAt,
+  location,
+  leagueName,
+}: AttendancePanelProps) {
   const { tokens } = useAppTheme();
   const { user } = useAuth();
   const { data: rows = [], isLoading, error } = useAttendance(matchId);
@@ -25,6 +37,9 @@ export function AttendancePanel({ matchId, locked, isAdmin }: AttendancePanelPro
   const setSide = useSetTeamSide(matchId);
 
   const t = (style: object) => [style, { fontFamily: fonts.body }];
+
+  const [sheetState, setSheetState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
+  const [sheetError, setSheetError] = useState<string | null>(null);
 
   if (error instanceof AttendanceUnavailableError) {
     return (
@@ -40,6 +55,27 @@ export function AttendancePanel({ matchId, locked, isAdmin }: AttendancePanelPro
   const home = going.filter((r) => r.team_side === 'home');
   const away = going.filter((r) => r.team_side === 'away');
   const unplaced = going.filter((r) => !r.team_side);
+  // Équipes terminées : tous les inscrits placés et deux équipes non vides
+  const teamsDone = home.length > 0 && away.length > 0 && unplaced.length === 0;
+
+  const exportSheet = async () => {
+    setSheetState('busy');
+    setSheetError(null);
+    try {
+      const png = await renderMatchSheetPng({
+        leagueName,
+        kickoffAt,
+        location,
+        home: home.map((r) => r.display_name),
+        away: away.map((r) => r.display_name),
+      });
+      await shareOrDownloadPng(png, matchSheetFilename(kickoffAt));
+      setSheetState('done');
+    } catch (e) {
+      setSheetError(toErrorMessage(e));
+      setSheetState('error');
+    }
+  };
 
   // Place les non-placés dans l'équipe la moins remplie, à tour de rôle.
   const autoBalance = () => {
@@ -181,6 +217,28 @@ export function AttendancePanel({ matchId, locked, isAdmin }: AttendancePanelPro
           Absents : {notGoing.map((r) => r.display_name).join(', ')}
         </Text>
       ) : null}
+      {teamsDone && Platform.OS === 'web' ? (
+        <Pressable
+          onPress={exportSheet}
+          disabled={sheetState === 'busy'}
+          accessibilityRole="button"
+          style={[styles.sheetBtn, { backgroundColor: tokens.lime }, sheetState === 'busy' && { opacity: 0.6 }]}
+        >
+          <Text style={t([styles.sheetText, { color: tokens.onLime }])}>
+            {sheetState === 'busy' ? 'Préparation…' : 'Télécharger la feuille de match (.png)'}
+          </Text>
+        </Pressable>
+      ) : null}
+      {sheetState === 'error' && sheetError ? (
+        <Text style={t([styles.error, { color: tokens.errorText }])}>{sheetError}</Text>
+      ) : null}
+      {isAdmin && !locked && going.length > 0 && !teamsDone ? (
+        <Text style={t([styles.hint, { color: tokens.muted2 }])}>
+          {unplaced.length > 0
+            ? `Place les ${unplaced.length} joueur${unplaced.length > 1 ? 's' : ''} restant${unplaced.length > 1 ? 's' : ''} pour générer la feuille de match.`
+            : 'Il faut au moins un joueur dans chaque équipe pour générer la feuille de match.'}
+        </Text>
+      ) : null}
       {isAdmin && !locked && going.length > 0 ? (
         <Text style={t([styles.hint, { color: tokens.muted2 }])}>
           Touche A ou B pour placer un joueur, touche à nouveau pour le retirer.
@@ -250,4 +308,12 @@ const styles = StyleSheet.create({
   sideText: { fontSize: 13, fontWeight: '700' },
   absents: { marginTop: 14, fontSize: 13, lineHeight: 18 },
   hint: { marginTop: 12, fontSize: 12, lineHeight: 17 },
+  sheetBtn: {
+    marginTop: 16,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetText: { fontSize: 15, fontWeight: '700' },
 });
