@@ -48,3 +48,13 @@ export function useRemoveLeagueMember() {
       qc.invalidateQueries({ queryKey: membersKeys.byLeague(variables.leagueId) }),
   });
 }
+
+export function useLeaveLeague() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ leagueId, playerId }: { leagueId: string; playerId: string }) =>
+      api.leaveLeague(leagueId, playerId),
+    // Ligue, matchs, votes, inscriptions : tout l'accueil dépend de la ligue courante.
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}

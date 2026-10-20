@@ -1,6 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -25,24 +24,13 @@ import {
 } from '../seasonAwardsHooks';
 import { ErrorState, LoadingState } from '../../../ui';
 import { toErrorMessage } from '../../../lib/errors';
+import { confirmAction } from '../../../lib/confirm';
 
 interface AwardVoteScreenProps {
   awardId: string;
   leagueId: string;
   /** Après suppression du trophée par l'admin */
   onDeleted: () => void;
-}
-
-/** Confirmation multiplateforme (Alert n'a pas de boutons sur le web). */
-function confirmAction(title: string, message: string, onConfirm: () => void) {
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${message}`)) onConfirm();
-    return;
-  }
-  Alert.alert(title, message, [
-    { text: 'Annuler', style: 'cancel' },
-    { text: 'Supprimer', style: 'destructive', onPress: onConfirm },
-  ]);
 }
 
 /** Recherche sans tenir compte des accents ni des majuscules. */
@@ -244,7 +232,8 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
                 confirmAction(
                   `Supprimer « ${award.data!.title} » ?`,
                   'Le trophée et tous ses votes seront définitivement supprimés.',
-                  () => remove.mutate(awardId, { onSuccess: onDeleted })
+                  () => remove.mutate(awardId, { onSuccess: onDeleted }),
+                  'Supprimer'
                 )
               }
               disabled={remove.isPending}

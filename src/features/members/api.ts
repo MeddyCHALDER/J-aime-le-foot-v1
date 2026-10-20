@@ -51,3 +51,15 @@ export async function fetchLeagueRoster(leagueId: string): Promise<RosterPlayer[
   if (error) throw error;
   return (data ?? []) as RosterPlayer[];
 }
+
+/** Quitter une ligue (règle « Members leave », migration 006). */
+export async function leaveLeague(leagueId: string, playerId: string): Promise<void> {
+  const { error, count } = await supabase
+    .from('league_members')
+    .delete({ count: 'exact' })
+    .eq('league_id', leagueId)
+    .eq('player_id', playerId);
+  if (error) throw error;
+  // RLS : une suppression refusée ne renvoie pas d'erreur, juste 0 ligne.
+  if (count === 0) throw new Error('Impossible de quitter cette ligue.');
+}

@@ -11,6 +11,8 @@ import { FifaCard } from '../cards/FifaCard';
 import { LoadingState, ErrorState } from '../../ui';
 import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
+import { useLeaveLeague } from '../members/hooks';
+import { confirmAction } from '../../lib/confirm';
 
 interface ProfileTabScreenProps {
   onEditProfile: () => void;
@@ -29,6 +31,9 @@ export function ProfileTabScreen({
   const { data: profile, isLoading, error, refetch } = useProfile(user?.id);
   const { data: card } = usePlayerCard(user?.id, profile?.preferred_position);
   const { league } = useHomeContext();
+  const leave = useLeaveLeague();
+  // Le gérant ne peut pas quitter sa ligue : elle resterait sans admin.
+  const isLeagueAdmin = !!league && !!user?.id && league.created_by === user.id;
 
   if (isLoading) return <LoadingState message="Chargement du profil…" />;
   if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
@@ -83,11 +88,42 @@ export function ProfileTabScreen({
             Modifier mon profil
           </Text>
         </Pressable>
-        <Pressable onPress={onJoinLeague} style={styles.rowBtn}>
-          <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
-            Rejoindre une ligue
+        {!league ? (
+          <Pressable onPress={onJoinLeague} style={styles.rowBtn}>
+            <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
+              Rejoindre une ligue
+            </Text>
+          </Pressable>
+        ) : isLeagueAdmin ? (
+          <View style={styles.rowBtn}>
+            <Text style={[styles.rowNote, { color: tokens.muted, fontFamily: fonts.body }]}>
+              Tu es l’admin de {league.name} : tu ne peux pas la quitter.
+            </Text>
+          </View>
+        ) : (
+          <Pressable
+            onPress={() =>
+              confirmAction(
+                `Quitter ${league.name} ?`,
+                'Tu ne verras plus ses matchs ni ses votes. Tu pourras revenir avec le code d’invitation.',
+                () => leave.mutate({ leagueId: league.id, playerId: user!.id }),
+                'Quitter'
+              )
+            }
+            disabled={leave.isPending}
+            style={styles.rowBtn}
+            accessibilityRole="button"
+          >
+            <Text style={[styles.rowText, { color: tokens.errorText, fontFamily: fonts.body }]}>
+              {leave.isPending ? 'Départ…' : `Quitter ${league.name}`}
+            </Text>
+          </Pressable>
+        )}
+        {leave.error ? (
+          <Text style={[styles.rowNote, { color: tokens.errorText, fontFamily: fonts.body }]}>
+            {toErrorMessage(leave.error)}
           </Text>
-        </Pressable>
+        ) : null}
         <Pressable onPress={onCreateLeague} style={styles.rowBtn}>
           <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
             Créer une ligue
@@ -145,6 +181,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   rowText: { fontSize: 15, fontWeight: '500' },
+  rowNote: { fontSize: 13, lineHeight: 18 },
   logout: {
     marginTop: 16,
     height: 48,
