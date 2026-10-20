@@ -77,9 +77,13 @@ export function overallFrom(stats: StatBlock, position: string | null | undefine
   return clamp(Math.round(total / weight), 1, 99);
 }
 
+/** Note de départ de tout nouveau joueur (choix de la ligue : tout le monde démarre à 85). */
+export const STARTING_OVERALL = 85;
+
 export function startingCard(position: string | null | undefined): PlayerCardStats {
+  // Les stats internes dépendent du poste ; la note affichée démarre à 85 pour tous.
   const stats = baseStats(position);
-  return { ...stats, overallRating: overallFrom(stats, position) };
+  return { ...stats, overallRating: STARTING_OVERALL };
 }
 
 export function autoRating(events: EventType[]): number {
