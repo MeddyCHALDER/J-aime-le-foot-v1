@@ -10,18 +10,10 @@ import {
   Menu,
   useTheme,
 } from 'react-native-paper';
-import {
-  useMatch,
-  useMatchTeams,
-  useMatchEvents,
-  useMatchTeamPlayers,
-  useUpdateMatch,
-  useCreateMatchEvent,
-} from '../hooks';
-import { useAuth } from '../../auth/hooks';
+import { useMatch, useMatchEvents, useUpdateMatch, useCreateMatchEvent } from '../hooks';
 import { useApplyMatchSheet } from '../../cards/hooks';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../../lib/supabase';
+import { AttendancePanel } from '../../attendance/AttendancePanel';
+import { useAttendance, useMatchAdmin } from '../../attendance/hooks';
 import { Screen, LoadingState, ErrorState, SectionHeader } from '../../../ui';
 import { toErrorMessage } from '../../../lib/errors';
 import type { MatchEventType } from '../../../types/entities';
@@ -40,39 +32,19 @@ interface MatchDetailScreenProps {
 
 export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
   const theme = useTheme();
-  const { user } = useAuth();
   const { data: match, isLoading, error, refetch } = useMatch(matchId);
-  const { data: matchTeams = [] } = useMatchTeams(matchId);
   const { data: events = [] } = useMatchEvents(matchId);
   const updateMatch = useUpdateMatch();
   const createEvent = useCreateMatchEvent();
   const applySheet = useApplyMatchSheet();
   const [sheetMsg, setSheetMsg] = useState<string | null>(null);
 
-  const homeTeam = matchTeams.find((t) => t.side === 'home');
-  const awayTeam = matchTeams.find((t) => t.side === 'away');
-  const { data: homePlayers = [] } = useMatchTeamPlayers(homeTeam?.id);
-  const { data: awayPlayers = [] } = useMatchTeamPlayers(awayTeam?.id);
-
-  // Résoudre si l'utilisateur est admin de la ligue du match
-  const { data: isAdmin = false } = useQuery({
-    queryKey: ['match_admin', matchId, user?.id],
-    enabled: !!match?.season_id && !!user?.id,
-    queryFn: async () => {
-      const { data: season } = await supabase
-        .from('seasons')
-        .select('league_id')
-        .eq('id', match!.season_id)
-        .single();
-      if (!season?.league_id) return false;
-      const { data: league } = await supabase
-        .from('leagues')
-        .select('created_by')
-        .eq('id', season.league_id)
-        .single();
-      return league?.created_by === user!.id;
-    },
-  });
+  // Admin = gérant de la ligue (manager_id en legacy, created_by en V1)
+  const { isAdmin } = useMatchAdmin(match?.season_id);
+  // Les équipes viennent des inscriptions : l'admin compose parmi les inscrits.
+  const { data: attendance = [] } = useAttendance(matchId);
+  const homePlayers = attendance.filter((a) => a.status === 'in' && a.team_side === 'home');
+  const awayPlayers = attendance.filter((a) => a.status === 'in' && a.team_side === 'away');
 
   const [homeScore, setHomeScore] = useState('');
   const [awayScore, setAwayScore] = useState('');
@@ -91,8 +63,8 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
 
   const playersForSide = eventSide === 'home' ? homePlayers : awayPlayers;
   const playerLabel = useMemo(() => {
-    const p = playersForSide.find((x) => x.player_id === eventPlayerId);
-    return p?.profile?.display_name ?? 'Choisir un joueur';
+    const p = playersForSide.find((x) => x.user_id === eventPlayerId);
+    return p?.display_name ?? 'Choisir un joueur';
   }, [playersForSide, eventPlayerId]);
 
   if (isLoading) return <LoadingState message="Chargement du match…" />;
@@ -155,16 +127,16 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
       <View style={styles.scoreSection}>
         <View style={styles.teamCol}>
           <Text variant="titleMedium" style={styles.teamName}>
-            {homeTeam?.name ?? 'Equipe A'}
+            Équipe A
           </Text>
           {homePlayers.map((p) => (
-            <Text key={p.player_id} variant="bodySmall" style={styles.playerLine}>
-              {p.profile?.display_name ?? 'Joueur'}
+            <Text key={p.user_id} variant="bodySmall" style={styles.playerLine}>
+              {p.display_name}
             </Text>
           ))}
         </View>
         <View style={styles.scoreBox}>
-          {played || !isAdmin ? (
+          {played ? (
             <Text variant="headlineLarge">
               {match.home_score} - {match.away_score}
             </Text>
@@ -174,15 +146,17 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
         </View>
         <View style={styles.teamCol}>
           <Text variant="titleMedium" style={styles.teamName}>
-            {awayTeam?.name ?? 'Equipe B'}
+            Équipe B
           </Text>
           {awayPlayers.map((p) => (
-            <Text key={p.player_id} variant="bodySmall" style={styles.playerLine}>
-              {p.profile?.display_name ?? 'Joueur'}
+            <Text key={p.user_id} variant="bodySmall" style={styles.playerLine}>
+              {p.display_name}
             </Text>
           ))}
         </View>
       </View>
+
+      <AttendancePanel matchId={match.id} locked={played} isAdmin={isAdmin} />
 
       {videoUrl ? (
         <Button
@@ -238,8 +212,8 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
               setEventPlayerId(null);
             }}
             buttons={[
-              { value: 'home', label: homeTeam?.name ?? 'A' },
-              { value: 'away', label: awayTeam?.name ?? 'B' },
+              { value: 'home', label: 'Équipe A' },
+              { value: 'away', label: 'Équipe B' },
             ]}
             style={styles.seg}
           />
@@ -266,12 +240,12 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
           >
             {playersForSide.map((p) => (
               <Menu.Item
-                key={p.player_id}
+                key={p.user_id}
                 onPress={() => {
-                  setEventPlayerId(p.player_id);
+                  setEventPlayerId(p.user_id);
                   setMenuOpen(false);
                 }}
-                title={p.profile?.display_name ?? p.player_id.slice(0, 6)}
+                title={p.display_name}
               />
             ))}
           </Menu>

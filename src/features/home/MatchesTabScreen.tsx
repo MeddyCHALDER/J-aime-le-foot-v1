@@ -13,6 +13,8 @@ import { useAppTheme } from '../../theme/ThemeContext';
 import { LoadingState, ErrorState, EmptyState } from '../../ui';
 import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
+import { useAuth } from '../auth/hooks';
+import { AttendanceQuick } from '../attendance/AttendanceQuick';
 import type { Match } from '../../types/entities';
 
 function formatDay(iso: string) {
@@ -22,6 +24,13 @@ function formatDay(iso: string) {
     return iso;
   }
 }
+
+const STATUS_LABEL: Record<string, string> = {
+  scheduled: 'À venir',
+  played: 'Terminé',
+  postponed: 'Reporté',
+  cancelled: 'Annulé',
+};
 
 function formatTime(iso: string) {
   try {
@@ -47,6 +56,9 @@ export function MatchesTabScreen({
   const insets = useSafeAreaInsets();
   const { tokens } = useAppTheme();
   const { league, season, matches, featured, isLoading, error, refetch } = useHomeContext();
+  const { user } = useAuth();
+  // Seul le gérant de la ligue crée des matchs (RLS côté Supabase).
+  const isAdmin = !!user?.id && league?.created_by === user.id;
 
   const rest = useMemo(
     () => matches.filter((m) => m.id !== featured?.id).slice(0, 12),
@@ -136,16 +148,28 @@ export function MatchesTabScreen({
                   <Text style={[styles.score, { color: tokens.text, fontFamily: fonts.display }]}>
                     {featured.home_score} – {featured.away_score}
                   </Text>
-                ) : null}
+                ) : (
+                  <AttendanceQuick matchId={featured.id} />
+                )}
               </Pressable>
             ) : (
               <EmptyState title="Aucun match" message="Le prochain match apparaîtra ici." />
             )}
 
-            {season ? (
+            {season && isAdmin ? (
               <Pressable
                 onPress={() => onCreateMatch(league.id, season.id)}
-                style={[styles.btn, { backgroundColor: tokens.lime, alignSelf: 'stretch' }]}
+                // styles.btn (flex: 1, base 0) est pensé pour une rangée ; en colonne il écrasait la hauteur.
+                style={[
+                  styles.btn,
+                  {
+                    backgroundColor: tokens.lime,
+                    alignSelf: 'stretch',
+                    flexGrow: 0,
+                    flexShrink: 0,
+                    flexBasis: 'auto',
+                  },
+                ]}
               >
                 <Text style={[styles.btnText, { color: tokens.onLime, fontFamily: fonts.body }]}>
                   Nouveau match
@@ -180,7 +204,7 @@ export function MatchesTabScreen({
               </Text>
             ) : (
               <Text style={[styles.pill, { color: tokens.lime, fontFamily: fonts.body }]}>
-                {item.status}
+                {STATUS_LABEL[item.status] ?? item.status}
               </Text>
             )}
           </Pressable>
