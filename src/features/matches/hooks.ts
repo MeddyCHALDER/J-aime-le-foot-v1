@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from './api';
+import { announceMatchOpen } from '../notifications/api';
 
 export const matchesKeys = {
   all: ['matches'] as const,
@@ -39,8 +40,11 @@ export function useCreateMatch() {
       kickoffAt: string;
       location?: string;
     }) => api.createMatch(seasonId, kickoffAt, location),
-    onSuccess: (_, variables) =>
-      qc.invalidateQueries({ queryKey: matchesKeys.bySeason(variables.seasonId) }),
+    onSuccess: (match, variables) => {
+      qc.invalidateQueries({ queryKey: matchesKeys.bySeason(variables.seasonId) });
+      // Un match créé est ouvert aux inscriptions : on prévient la ligue.
+      void announceMatchOpen(match.id);
+    },
   });
 }
 

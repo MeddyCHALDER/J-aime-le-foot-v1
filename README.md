@@ -134,6 +134,25 @@ Chemins objets : `avatars/{userId}/…`, `images/{userId}/…`, `videos/{userId}
 
 Dans l’app : **Mon profil → Changer la photo**.
 
+## Notifications push
+
+Les membres d'une ligue sont prévenus quand l'admin **crée un match** (inscriptions
+ouvertes) et quand il **ouvre des votes** (nouveau trophée, ou trophées classiques
+ajoutés d'un coup → une seule notification). Le message arrive même app fermée.
+
+1. **SQL Editor** : exécuter `supabase/migrations/009_push_notifications.sql`.
+2. Générer une paire de clés VAPID (une fois, à garder) :
+   ```bash
+   npx web-push generate-vapid-keys
+   ```
+3. **Edge Functions → Secrets** : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`,
+   `VAPID_SUBJECT` (ex. `mailto:contact@jaimelefoot.app`).
+4. Déployer : `supabase functions deploy send-push`.
+
+Chaque joueur active les notifications dans **Profil → Réglages → Notifications**.
+Sur iPhone (iOS 16.4+), uniquement depuis l'app ajoutée à l'écran d'accueil.
+Changer les clés VAPID invalide tous les abonnements : chacun devra réactiver.
+
 ## Lancement (web)
 
 ```bash

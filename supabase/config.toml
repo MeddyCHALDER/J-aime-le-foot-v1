@@ -2,6 +2,7 @@
 # Déploie avec :
 #   supabase functions deploy send-invite
 #   supabase functions deploy media-upload-url
+#   supabase functions deploy send-push
 
 [functions.send-invite]
 verify_jwt = true
@@ -12,3 +13,6 @@ verify_jwt = true
 # Public : pas besoin d’être connecté pour demander un reset
 [functions.send-password-reset]
 verify_jwt = false
+
+[functions.send-push]
+verify_jwt = true

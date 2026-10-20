@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from './seasonAwardsApi';
+import { announceVotesOpen } from '../notifications/api';
 
 export const seasonAwardsKeys = {
   list: (seasonId: string) => ['season_awards', seasonId] as const,
@@ -20,7 +21,11 @@ export function useOpenSeasonAwards() {
   return useMutation({
     mutationFn: ({ seasonId, playerIds }: { seasonId: string; playerIds: string[] }) =>
       api.openSeasonAwards(seasonId, playerIds),
-    onSuccess: (_, v) => qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(v.seasonId) }),
+    onSuccess: (created, v) => {
+      qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(v.seasonId) });
+      // Une seule notification pour tous les trophées ajoutés d'un coup.
+      void announceVotesOpen(created.map((a) => a.id));
+    },
   });
 }
 
@@ -126,8 +131,9 @@ export function useCreateAward(seasonId: string | undefined) {
   return useMutation({
     mutationFn: ({ title, description }: { title: string; description?: string }) =>
       api.createAward(seasonId!, title, description),
-    onSuccess: () => {
+    onSuccess: (award) => {
       if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
+      void announceVotesOpen([award.id]);
     },
   });
 }

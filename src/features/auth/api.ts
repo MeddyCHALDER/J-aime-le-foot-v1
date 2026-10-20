@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import { forgetThisDevice } from '../notifications/api';
 
 export async function signUp(email: string, password: string, displayName?: string) {
   const { data, error } = await supabase.auth.signUp({
@@ -20,6 +21,8 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
+  // Avant la déconnexion : le désabonnement a besoin de la session.
+  await forgetThisDevice();
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }

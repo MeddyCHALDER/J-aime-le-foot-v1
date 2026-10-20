@@ -32,6 +32,44 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// Notifications push (Edge Function send-push) : { title, body, url, tag }.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "J'aime le foot", {
+      body: data.body || '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: data.tag,
+      data: { url: data.url || '/' },
+    })
+  );
+});
+
+// Toucher la notification : on réutilise l'app déjà ouverte plutôt que d'en ouvrir une
+// seconde (la session et le cache de requêtes y sont déjà chargés).
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const client = clients.find((c) => new URL(c.url).origin === self.location.origin);
+      if (client) {
+        await client.focus();
+        client.postMessage({ type: 'JLF_OPEN', url });
+        return;
+      }
+      await self.clients.openWindow(url);
+    })()
+  );
+});
+
 function isHashedAsset(url) {
   return (
     url.pathname.startsWith('/_expo/static/') ||

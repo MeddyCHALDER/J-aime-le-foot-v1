@@ -5,6 +5,7 @@ import { useAppTheme } from '../../theme/ThemeContext';
 import { MatchesTabScreen } from './MatchesTabScreen';
 import { VotesTabScreen } from './VotesTabScreen';
 import { ProfileTabScreen } from './ProfileTabScreen';
+import { useNotificationOpener } from '../notifications/hooks';
 
 interface MainTabsScreenProps {
   onMatchPress: (matchId: string) => void;
@@ -30,6 +31,12 @@ export function MainTabsScreen({
   // Sur grand écran, il reste dans le cadre téléphone centré de l'AppShell.
   const { width } = useWindowDimensions();
   const fixedDock = Platform.OS === 'web' && width < 640;
+
+  useNotificationOpener((target) => {
+    if (target.screen === 'match') onMatchPress(target.matchId);
+    else if (target.screen === 'award') onAwardPress(target.awardId, target.leagueId);
+    else setTab('votes');
+  });
 
   return (
     <View style={[styles.root, { backgroundColor: tokens.ink }]}>

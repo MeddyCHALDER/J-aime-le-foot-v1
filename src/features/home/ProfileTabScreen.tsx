@@ -13,6 +13,7 @@ import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
 import { useLeaveLeague } from '../members/hooks';
 import { confirmAction } from '../../lib/confirm';
+import { PushToggle } from '../notifications/PushToggle';
 
 interface ProfileTabScreenProps {
   onEditProfile: () => void;
@@ -70,7 +71,7 @@ export function ProfileTabScreen({
 
       <View style={[styles.card, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>
         <Text style={[styles.cardLabel, { color: tokens.muted2, fontFamily: fonts.body }]}>
-          Apparence
+          Réglages
         </Text>
         <Pressable onPress={toggleScheme} style={styles.rowBtn}>
           <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
@@ -80,6 +81,7 @@ export function ProfileTabScreen({
             Basculer
           </Text>
         </Pressable>
+        <PushToggle />
       </View>
 
       <View style={[styles.card, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>
