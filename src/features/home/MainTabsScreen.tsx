@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { TabBar, useTabBarHeight, type PlayerTab } from '../../components/TabBar';
 import { useAppTheme } from '../../theme/ThemeContext';
@@ -6,6 +6,9 @@ import { MatchesTabScreen } from './MatchesTabScreen';
 import { VotesTabScreen } from './VotesTabScreen';
 import { ProfileTabScreen } from './ProfileTabScreen';
 import { useNotificationOpener } from '../notifications/hooks';
+import { useAuth } from '../auth/hooks';
+import { InstallGuide } from '../onboarding/InstallGuide';
+import { installGuideSeen, isStandalone, markInstallGuideSeen } from '../../lib/install';
 
 interface MainTabsScreenProps {
   onMatchPress: (matchId: string) => void;
@@ -31,6 +34,19 @@ export function MainTabsScreen({
   // Sur grand écran, il reste dans le cadre téléphone centré de l'AppShell.
   const { width } = useWindowDimensions();
   const fixedDock = Platform.OS === 'web' && width < 640;
+
+  // Tuto d'installation : à la première connexion sur cet appareil, si l'app n'est pas déjà installée.
+  const { user } = useAuth();
+  const [installGuide, setInstallGuide] = useState(false);
+  useEffect(() => {
+    if (Platform.OS === 'web' && user?.id && !isStandalone() && !installGuideSeen(user.id)) {
+      setInstallGuide(true);
+    }
+  }, [user?.id]);
+  const closeInstallGuide = () => {
+    if (user?.id) markInstallGuideSeen(user.id);
+    setInstallGuide(false);
+  };
 
   useNotificationOpener((target) => {
     if (target.screen === 'match') onMatchPress(target.matchId);
@@ -64,12 +80,14 @@ export function MainTabsScreen({
             onEditProfile={onEditProfile}
             onJoinLeague={onJoinLeague}
             onCreateLeague={onCreateLeague}
+            onOpenInstallGuide={() => setInstallGuide(true)}
           />
         ) : null}
       </View>
       <View style={[styles.tabDock, fixedDock && styles.tabDockFixed]} pointerEvents="box-none">
         <TabBar active={tab} onChange={setTab} />
       </View>
+      {installGuide ? <InstallGuide onClose={closeInstallGuide} /> : null}
     </View>
   );
 }

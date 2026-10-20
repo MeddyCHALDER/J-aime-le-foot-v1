@@ -13,18 +13,21 @@ import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
 import { useLeaveLeague } from '../members/hooks';
 import { confirmAction } from '../../lib/confirm';
+import { isStandalone } from '../../lib/install';
 import { PushToggle } from '../notifications/PushToggle';
 
 interface ProfileTabScreenProps {
   onEditProfile: () => void;
   onJoinLeague: () => void;
   onCreateLeague: () => void;
+  onOpenInstallGuide: () => void;
 }
 
 export function ProfileTabScreen({
   onEditProfile,
   onJoinLeague,
   onCreateLeague,
+  onOpenInstallGuide,
 }: ProfileTabScreenProps) {
   const insets = useSafeAreaInsets();
   const { tokens, scheme, toggleScheme } = useAppTheme();
@@ -82,6 +85,14 @@ export function ProfileTabScreen({
           </Text>
         </Pressable>
         <PushToggle />
+        {!isStandalone() ? (
+          <Pressable onPress={onOpenInstallGuide} style={styles.rowBtn} accessibilityRole="button">
+            <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
+              Installer l’app sur ton téléphone
+            </Text>
+            <Text style={{ color: tokens.lime, fontFamily: fonts.body, fontWeight: '700' }}>Voir</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={[styles.card, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>

@@ -6,6 +6,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { queryClient } from './src/lib/queryClient';
 import { registerPwa } from './src/lib/registerPwa';
+import { initInstallPrompt } from './src/lib/install';
 import { loadBrandFonts } from './src/lib/brandFonts';
 import './src/lib/motion';
 import { AppThemeProvider, useAppTheme } from './src/theme/ThemeContext';
@@ -13,6 +14,7 @@ import { AppShell } from './src/components/AppShell';
 import { RootNavigator } from './src/navigation/RootNavigator';
 
 registerPwa();
+initInstallPrompt();
 loadBrandFonts();
 
 function NavigationRoot() {
