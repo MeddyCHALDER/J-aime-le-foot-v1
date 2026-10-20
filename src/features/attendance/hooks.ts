@@ -75,6 +75,13 @@ export function useSetMyAttendance(matchId: string) {
         ...row,
         status,
         team_side: status === 'out' ? null : row?.team_side ?? null,
+        // Même règle que la base : l'heure d'arrivée ne change pas si on était déjà inscrit
+        in_at:
+          status === 'in'
+            ? row?.status === 'in'
+              ? row.in_at ?? null
+              : new Date().toISOString()
+            : null,
       }));
     },
     onError: (_e, _v, ctx) => {

@@ -12,6 +12,8 @@ export interface Attendance {
   team_side: TeamSide | null;
   display_name: string;
   updated_at: string;
+  /** Heure du « Je viens », posée par la base (migration 012) */
+  in_at?: string | null;
 }
 
 /** Levée quand la table match_attendance n'existe pas encore (migration 005 non exécutée). */

@@ -12,6 +12,7 @@ import { MiniPlayerCard } from '../cards/MiniPlayerCard';
 import { useRegistrationOpening } from './useRegistrationOpening';
 import { useUpdateMatch } from '../matches/hooks';
 import { announceMatchOpen } from '../notifications/api';
+import { ordinal, splitByArrival } from './order';
 
 interface AttendancePanelProps {
   matchId: string;
@@ -26,6 +27,8 @@ interface AttendancePanelProps {
   leagueId: string | null;
   /** Ouverture programmée des inscriptions (null = ouvertes) */
   registrationOpensAt: string | null | undefined;
+  /** Nombre de places (null = illimité) */
+  maxPlayers: number | null | undefined;
 }
 
 const SIDE_LABEL: Record<TeamSide, string> = { home: 'Équipe A', away: 'Équipe B' };
@@ -40,6 +43,7 @@ export function AttendancePanel({
   leagueName,
   leagueId,
   registrationOpensAt,
+  maxPlayers,
 }: AttendancePanelProps) {
   const { tokens } = useAppTheme();
   const { user } = useAuth();
@@ -71,11 +75,18 @@ export function AttendancePanel({
   }
 
   const mine = rows.find((r) => r.user_id === user?.id);
-  const going = rows.filter((r) => r.status === 'in');
+  // Ordre d'arrivée des « Je viens » : titulaires puis liste d'attente
+  const split = splitByArrival(rows, maxPlayers);
+  const going = split.confirmed;
+  const waitlist = split.waitlist;
+  const myRank = split.rankOf(user?.id);
   const notGoing = rows.filter((r) => r.status === 'out');
+  // Seuls les titulaires sont placés dans les équipes
   const home = going.filter((r) => r.team_side === 'home');
   const away = going.filter((r) => r.team_side === 'away');
   const unplaced = going.filter((r) => !r.team_side);
+  const setPlaces = (n: number | null) =>
+    updateMatch.mutate({ id: matchId, updates: { max_players: n } });
   // Équipes terminées : tous les inscrits placés et deux équipes non vides
   const teamsDone = home.length > 0 && away.length > 0 && unplaced.length === 0;
 
@@ -207,11 +218,13 @@ export function AttendancePanel({
           ? 'Match terminé'
           : !opening.open && !mine
             ? 'Inscriptions bientôt'
-            : mine?.status === 'in'
-            ? 'Tu joues'
-            : mine?.status === 'out'
-              ? 'Tu ne viens pas'
-              : 'Tu viens ?'}
+            : myRank?.list === 'waitlist'
+              ? `${ordinal(myRank.n)} en liste d’attente`
+              : mine?.status === 'in'
+                ? 'Tu joues'
+                : mine?.status === 'out'
+                  ? 'Tu ne viens pas'
+                  : 'Tu viens ?'}
       </Text>
 
       {!locked && !opening.open ? (
@@ -240,7 +253,7 @@ export function AttendancePanel({
       ) : null}
 
       <View style={styles.rsvpRow}>
-        {rsvpButton('in', 'Je viens')}
+        {rsvpButton('in', split.full && mine?.status !== 'in' ? 'Liste d’attente' : 'Je viens')}
         {rsvpButton('out', 'Je ne viens pas')}
       </View>
       {setMine.error ? (
@@ -251,8 +264,15 @@ export function AttendancePanel({
 
       <View style={styles.countRow}>
         <Text style={t([styles.count, { color: tokens.text }])}>
-          {going.length} inscrit{going.length > 1 ? 's' : ''}
+          {split.limit
+            ? `${going.length}/${split.limit} places`
+            : `${going.length} inscrit${going.length > 1 ? 's' : ''}`}
         </Text>
+        {waitlist.length > 0 ? (
+          <Text style={t([styles.muted, { color: tokens.lime }])}>
+            {waitlist.length} en attente
+          </Text>
+        ) : null}
         {notGoing.length > 0 ? (
           <Text style={t([styles.muted, { color: tokens.muted }])}>
             {notGoing.length} absent{notGoing.length > 1 ? 's' : ''}
@@ -260,6 +280,39 @@ export function AttendancePanel({
         ) : null}
         {isLoading ? <ActivityIndicator size="small" color={tokens.lime} /> : null}
       </View>
+      {myRank?.list === 'confirmed' && split.limit ? (
+        <Text style={t([styles.hint, { color: tokens.muted2, marginTop: 4 }])}>
+          Ta place : n°{myRank.n} sur {split.limit}.
+        </Text>
+      ) : null}
+
+      {isAdmin && !locked ? (
+        <View style={styles.placesRow}>
+          <Text style={t([styles.placesLabel, { color: tokens.muted }])}>Places</Text>
+          <Pressable
+            onPress={() => setPlaces(split.limit ? Math.max(2, split.limit - 1) : 10)}
+            style={[styles.stepBtn, { borderColor: tokens.line }]}
+            accessibilityRole="button"
+            accessibilityLabel="Une place de moins"
+          >
+            <Text style={t([styles.stepText, { color: tokens.text }])}>−</Text>
+          </Pressable>
+          <Text style={t([styles.placesValue, { color: tokens.text }])}>{split.limit ?? '∞'}</Text>
+          <Pressable
+            onPress={() => setPlaces(split.limit ? Math.min(60, split.limit + 1) : 12)}
+            style={[styles.stepBtn, { borderColor: tokens.line }]}
+            accessibilityRole="button"
+            accessibilityLabel="Une place de plus"
+          >
+            <Text style={t([styles.stepText, { color: tokens.text }])}>+</Text>
+          </Pressable>
+          {split.limit ? (
+            <Pressable onPress={() => setPlaces(null)} accessibilityRole="button" hitSlop={8}>
+              <Text style={t([styles.placesClear, { color: tokens.lime }])}>Illimité</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
       {isAdmin && !locked && unplaced.length > 0 ? (
         <Pressable
@@ -298,6 +351,28 @@ export function AttendancePanel({
       {isAdmin && !locked
         ? group('Placer les joueurs', [...unplaced, ...home, ...away])
         : group(home.length + away.length > 0 ? 'En attente d’équipe' : 'Inscrits', unplaced)}
+      {waitlist.length > 0 ? (
+        <View style={styles.group}>
+          <Text style={t([styles.groupTitle, { color: tokens.lime }])}>
+            Liste d’attente · {waitlist.length}
+          </Text>
+          {waitlist.map((r, i) => (
+            <View key={r.user_id} style={[styles.playerRow, { borderTopColor: tokens.line }]}>
+              <Text style={[styles.waitRank, { color: tokens.muted2, fontFamily: fonts.display }]}>
+                {i + 1}
+              </Text>
+              {mini(r, 'xs')}
+              <Text style={t([styles.playerName, { color: tokens.text }])} numberOfLines={1}>
+                {r.display_name}
+                {r.user_id === user?.id ? ' (toi)' : ''}
+              </Text>
+            </View>
+          ))}
+          <Text style={t([styles.hint, { color: tokens.muted2 }])}>
+            Dès qu’un inscrit se désiste, le premier de la liste prend sa place.
+          </Text>
+        </View>
+      ) : null}
       {notGoing.length > 0 ? (
         <Text style={t([styles.absents, { color: tokens.muted2 }])}>
           Absents : {notGoing.map((r) => r.display_name).join(', ')}
@@ -357,6 +432,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   openNowText: { fontSize: 14, fontWeight: '700' },
+  placesRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  placesLabel: { fontSize: 13, fontWeight: '600' },
+  stepBtn: { width: 34, height: 34, borderRadius: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  stepText: { fontSize: 18, fontWeight: '700' },
+  placesValue: { fontSize: 16, fontWeight: '700', minWidth: 24, textAlign: 'center' },
+  placesClear: { fontSize: 13, fontWeight: '700' },
+  waitRank: { width: 22, fontSize: 15, fontStyle: 'italic', fontWeight: '700', textAlign: 'center', marginRight: 6 },
   rsvp: {
     flex: 1,
     height: 48,

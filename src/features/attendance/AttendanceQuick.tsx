@@ -6,14 +6,17 @@ import { useAuth } from '../auth/hooks';
 import { AttendanceUnavailableError } from './api';
 import { useAttendance, useSetMyAttendance } from './hooks';
 import { useRegistrationOpening } from './useRegistrationOpening';
+import { ordinal, splitByArrival } from './order';
 
 /** Inscription en un geste sur la carte du prochain match (onglet Matchs). */
 export function AttendanceQuick({
   matchId,
   registrationOpensAt,
+  maxPlayers,
 }: {
   matchId: string;
   registrationOpensAt?: string | null;
+  maxPlayers?: number | null;
 }) {
   const { tokens } = useAppTheme();
   const { user } = useAuth();
@@ -39,7 +42,9 @@ export function AttendanceQuick({
   }
 
   const mine = rows.find((r) => r.user_id === user?.id)?.status;
-  const going = rows.filter((r) => r.status === 'in').length;
+  const split = splitByArrival(rows, maxPlayers);
+  const going = split.confirmed.length;
+  const myRank = split.rankOf(user?.id);
 
   const btn = (status: 'in' | 'out', label: string) => {
     const on = mine === status;
@@ -75,11 +80,16 @@ export function AttendanceQuick({
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
-        {btn('in', 'Je viens')}
+        {btn('in', split.full && mine !== 'in' ? 'Liste d’attente' : 'Je viens')}
         {btn('out', 'Je ne viens pas')}
       </View>
       <Text style={[styles.count, { color: tokens.muted, fontFamily: fonts.body }]}>
-        {going} inscrit{going > 1 ? 's' : ''} · touche la carte pour voir les équipes
+        {split.limit
+          ? split.full
+            ? `Complet (${split.limit} places)${split.waitlist.length ? ` · ${split.waitlist.length} en attente` : ''}`
+            : `${split.limit - going} place${split.limit - going > 1 ? 's' : ''} restante${split.limit - going > 1 ? 's' : ''} sur ${split.limit}`
+          : `${going} inscrit${going > 1 ? 's' : ''}`}
+        {myRank?.list === 'waitlist' ? ` · tu es ${ordinal(myRank.n)} en attente` : ''}
       </Text>
     </View>
   );

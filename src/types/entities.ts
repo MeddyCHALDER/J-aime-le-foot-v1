@@ -54,6 +54,8 @@ export interface Match {
   replay_url: string | null;
   /** Ouverture programmée des inscriptions (null = ouvertes), migration 011 */
   registration_opens_at?: string | null;
+  /** Nombre de places (null = illimité), migration 012 */
+  max_players?: number | null;
   created_at: string;
   updated_at?: string;
 }

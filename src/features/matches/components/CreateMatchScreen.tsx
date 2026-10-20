@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet } from 'react-native';
-import { TextInput, Button, Text, SegmentedButtons } from 'react-native-paper';
+import { StyleSheet, View } from 'react-native';
+import { TextInput, Button, Text, SegmentedButtons, Chip } from 'react-native-paper';
 import { Screen } from '../../../ui';
 import { useCreateMatch } from '../hooks';
 import { KickoffPicker } from './KickoffPicker';
@@ -39,6 +39,9 @@ export function CreateMatchScreen({
     return toLocalInput(next);
   });
   const opensAt = openingDate(opening, kickoffAt, customOpening);
+  // Nombre de places : vide = illimité
+  const [places, setPlaces] = useState('');
+  const maxPlayers = places.trim() ? Number(places) : null;
   const [location, setLocation] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +57,10 @@ export function CreateMatchScreen({
       setError('Choisis une date et une heure.');
       return;
     }
+    if (maxPlayers !== null && (!Number.isInteger(maxPlayers) || maxPlayers < 2 || maxPlayers > 60)) {
+      setError('Nombre de places : entre 2 et 60, ou vide pour illimité.');
+      return;
+    }
     if (opensAt && opensAt >= date) {
       setError('L’ouverture des inscriptions doit être avant le coup d’envoi.');
       return;
@@ -66,6 +73,7 @@ export function CreateMatchScreen({
         location: location.trim() || undefined,
         // Une heure déjà passée revient à ouvrir tout de suite
         registrationOpensAt: opensAt && opensAt > new Date() ? opensAt.toISOString() : null,
+        maxPlayers,
       });
       // Les équipes se composent ensuite parmi les inscrits, depuis la fiche du match.
       onSuccess(match.id);
@@ -86,6 +94,30 @@ export function CreateMatchScreen({
         placeholder="Terrain municipal…"
         style={styles.input}
       />
+
+      <Text variant="labelLarge" style={styles.sectionLabel}>
+        Nombre de places
+      </Text>
+      <View style={styles.chips}>
+        {['', '10', '12', '14', '16'].map((v) => (
+          <Chip key={v || 'all'} selected={places === v} onPress={() => setPlaces(v)} compact>
+            {v || 'Illimité'}
+          </Chip>
+        ))}
+      </View>
+      <TextInput
+        label="Ou un autre nombre"
+        value={places}
+        onChangeText={(t) => setPlaces(t.replace(/[^0-9]/g, '').slice(0, 2))}
+        keyboardType="number-pad"
+        mode="outlined"
+        style={styles.input}
+      />
+      <Text variant="bodySmall" style={styles.hint}>
+        {maxPlayers
+          ? `Les ${maxPlayers} premiers « Je viens » jouent ; les suivants passent en liste d’attente et montent dès qu’une place se libère.`
+          : 'Pas de limite : tous ceux qui disent « Je viens » sont inscrits.'}
+      </Text>
 
       <Text variant="labelLarge" style={styles.sectionLabel}>
         Ouverture des inscriptions
@@ -163,6 +195,7 @@ const styles = StyleSheet.create({
   input: { marginBottom: 12 },
   sectionLabel: { marginTop: 4, marginBottom: 8 },
   segments: { marginBottom: 12 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
   hint: { opacity: 0.75, marginBottom: 12, lineHeight: 18 },
   button: { marginTop: 8 },
   error: { color: brand.errorText, backgroundColor: brand.errorBg, padding: 12, borderRadius: 4, marginBottom: 12 },

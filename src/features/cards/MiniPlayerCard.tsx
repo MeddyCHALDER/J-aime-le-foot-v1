@@ -21,7 +21,7 @@ interface MiniPlayerCardProps {
 
 const SIZES = {
   xs: { w: 40, h: 54, radius: 7, rating: 13, pos: 7, name: 0 },
-  sm: { w: 68, h: 92, radius: 10, rating: 18, pos: 8, name: 9 },
+  sm: { w: 60, h: 82, radius: 9, rating: 16, pos: 8, name: 8 },
 } as const;
 
 /** Miniature de la carte or : note, poste, photo (ou initiale) et nom. */

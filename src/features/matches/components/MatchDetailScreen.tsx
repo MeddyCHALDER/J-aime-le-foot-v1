@@ -111,6 +111,7 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
         leagueName={league?.name ?? null}
         leagueId={league?.id ?? null}
         registrationOpensAt={match.registration_opens_at}
+        maxPlayers={match.max_players}
       />
 
       {videoUrl ? (

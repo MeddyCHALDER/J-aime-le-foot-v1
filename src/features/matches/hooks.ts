@@ -36,12 +36,14 @@ export function useCreateMatch() {
       kickoffAt,
       location,
       registrationOpensAt,
+      maxPlayers,
     }: {
       seasonId: string;
       kickoffAt: string;
       location?: string;
       registrationOpensAt?: string | null;
-    }) => api.createMatch(seasonId, kickoffAt, location, registrationOpensAt),
+      maxPlayers?: number | null;
+    }) => api.createMatch(seasonId, kickoffAt, location, registrationOpensAt, maxPlayers),
     onSuccess: (match, variables) => {
       qc.invalidateQueries({ queryKey: matchesKeys.bySeason(variables.seasonId) });
       // Inscriptions ouvertes tout de suite : on prévient la ligue maintenant.

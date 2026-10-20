@@ -26,6 +26,7 @@ function normalizeMatch(row: Record<string, unknown>): Match {
     stream_url: (row.stream_url as string | null) ?? null,
     replay_url: (row.replay_url as string | null) ?? null,
     registration_opens_at: (row.registration_opens_at as string | null) ?? null,
+    max_players: row.max_players == null ? null : Number(row.max_players),
     created_at: String(row.created_at ?? ''),
     updated_at: row.updated_at ? String(row.updated_at) : undefined,
   };
@@ -65,10 +66,15 @@ export async function createMatch(
   kickoffAt: string,
   location?: string,
   /** ISO ; absent = inscriptions ouvertes tout de suite */
-  registrationOpensAt?: string | null
+  registrationOpensAt?: string | null,
+  /** Nombre de places ; absent = illimité */
+  maxPlayers?: number | null
 ): Promise<Match> {
-  // Ajouté seulement si renseigné : la colonne n'existe qu'après la migration 011.
-  const opening = registrationOpensAt ? { registration_opens_at: registrationOpensAt } : {};
+  // Ajoutés seulement si renseignés : colonnes des migrations 011 et 012.
+  const opening = {
+    ...(registrationOpensAt ? { registration_opens_at: registrationOpensAt } : {}),
+    ...(maxPlayers ? { max_players: maxPlayers } : {}),
+  };
   // V1 (kickoff_at + location)
   {
     const res = await supabase
@@ -134,6 +140,7 @@ export async function updateMatch(
       | 'stream_url'
       | 'replay_url'
       | 'registration_opens_at'
+      | 'max_players'
     >
   >
 ): Promise<Match> {

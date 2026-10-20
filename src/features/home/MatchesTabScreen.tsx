@@ -152,6 +152,7 @@ export function MatchesTabScreen({
                   <AttendanceQuick
                     matchId={featured.id}
                     registrationOpensAt={featured.registration_opens_at}
+                    maxPlayers={featured.max_players}
                   />
                 )}
               </Pressable>
