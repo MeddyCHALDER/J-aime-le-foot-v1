@@ -155,6 +155,14 @@ async function announce(body: Record<string, unknown>) {
   }
 }
 
+/** Notification de test sur ses propres appareils. Contrairement aux annonces, l'erreur remonte. */
+export async function sendTestPush(): Promise<{ sent: number; devices: number }> {
+  const { data, error } = await supabase.functions.invoke('send-push', { body: { kind: 'test' } });
+  if (error) throw error;
+  if (data?.error) throw new Error(String(data.error));
+  return { sent: Number(data?.sent ?? 0), devices: Number(data?.devices ?? 0) };
+}
+
 export function announceMatchOpen(matchId: string) {
   return announce({ kind: 'match_open', matchId });
 }

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { fonts } from '../../theme/brand';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { toErrorMessage } from '../../lib/errors';
-import { disablePush, enablePush, getPushState, type PushState } from './api';
+import { disablePush, enablePush, getPushState, sendTestPush, type PushState } from './api';
 
 const NOTES: Partial<Record<PushState, string>> = {
   unsupported: 'Ce navigateur ne reçoit pas les notifications.',
@@ -18,6 +18,8 @@ export function PushToggle() {
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -44,6 +46,26 @@ export function PushToggle() {
 
   const note = state ? NOTES[state] : null;
 
+  const test = async () => {
+    setTesting(true);
+    setTestMsg(null);
+    setError(null);
+    try {
+      const { sent, devices } = await sendTestPush();
+      setTestMsg(
+        sent > 0
+          ? `Envoyée sur ${sent} appareil${sent > 1 ? 's' : ''}. Elle doit arriver dans quelques secondes.`
+          : devices > 0
+            ? 'L’envoi a échoué : désactive puis réactive les notifications, et réessaie.'
+            : 'Aucun appareil enregistré : désactive puis réactive les notifications.'
+      );
+    } catch (e) {
+      setError(toErrorMessage(e));
+    } finally {
+      setTesting(false);
+    }
+  };
+
   return (
     <View>
       <Pressable
@@ -69,6 +91,19 @@ export function PushToggle() {
       </Pressable>
       {note ? (
         <Text style={[styles.note, { color: tokens.muted, fontFamily: fonts.body }]}>{note}</Text>
+      ) : null}
+      {state === 'on' ? (
+        <Pressable onPress={test} disabled={testing} style={styles.row} accessibilityRole="button">
+          <Text style={[styles.rowText, { color: tokens.text, fontFamily: fonts.body }]}>
+            Envoyer une notification de test
+          </Text>
+          <Text style={{ color: tokens.lime, fontFamily: fonts.body, fontWeight: '700' }}>
+            {testing ? '…' : 'Tester'}
+          </Text>
+        </Pressable>
+      ) : null}
+      {testMsg ? (
+        <Text style={[styles.note, { color: tokens.muted, fontFamily: fonts.body }]}>{testMsg}</Text>
       ) : null}
       {error ? (
         <Text style={[styles.note, { color: tokens.errorText, fontFamily: fonts.body }]}>{error}</Text>

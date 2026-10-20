@@ -3,6 +3,7 @@
  *   { kind: 'config' }                     → clé publique VAPID (abonnement côté app)
  *   { kind: 'match_open', matchId }        → inscriptions ouvertes pour un match
  *   { kind: 'vote_open', awardIds: [...] } → votes ouverts pour un ou plusieurs trophées
+ *   { kind: 'test' }                       → notification de test sur ses propres appareils
  *   { kind: 'due' }                        → inscriptions arrivées à leur heure d'ouverture
  *                                            (appelé chaque minute par pg_cron, migration 011)
  * Les annonces sont réservées à l'admin de la ligue et ne partent qu'une fois (table push_sent).
@@ -75,6 +76,21 @@ Deno.serve(async (req) => {
 
     if (kind === 'config') {
       return json({ publicKey: VAPID_PUBLIC_KEY });
+    }
+
+    // Test : uniquement vers les appareils de l'utilisateur connecté, jamais vers les autres.
+    if (kind === 'test') {
+      const { data: subs } = await admin
+        .from('push_subscriptions')
+        .select('endpoint, p256dh, auth')
+        .eq('user_id', user.id);
+      const sent = await pushTo(admin, vapid, subs ?? [], {
+        title: 'Notification de test',
+        body: 'Ça marche ! Les annonces de ta ligue arriveront ici.',
+        url: '/',
+        tag: 'jlf-test',
+      });
+      return json({ ok: true, sent, devices: subs?.length ?? 0 });
     }
 
     let announce: Announce;
@@ -236,13 +252,21 @@ async function deliver(
     .select('endpoint, p256dh, auth')
     .in('user_id', recipients);
 
+  const sent = await pushTo(admin, vapid, subs ?? [], payload);
+  return { ok: true, sent, devices: subs?.length ?? 0 };
+}
+
+type Sub = { endpoint: string; p256dh: string; auth: string };
+
+/** Envoie la notification aux abonnements donnés et supprime ceux qui n'existent plus. */
+async function pushTo(admin: SupabaseClient, vapid: Vapid, subs: Sub[], payload: Payload) {
   webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
   const message = JSON.stringify(payload);
   const gone: string[] = [];
   let sent = 0;
 
   await Promise.all(
-    (subs ?? []).map(async (s) => {
+    subs.map(async (s) => {
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
@@ -263,8 +287,7 @@ async function deliver(
   if (gone.length) {
     await admin.from('push_subscriptions').delete().in('endpoint', gone);
   }
-
-  return { ok: true, sent, devices: subs?.length ?? 0 };
+  return sent;
 }
 
 async function leagueOfSeason(admin: SupabaseClient, seasonId: string): Promise<string | null> {
