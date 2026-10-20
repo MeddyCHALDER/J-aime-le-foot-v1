@@ -1,30 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Linking, View } from 'react-native';
-import {
-  Text,
-  Button,
-  List,
-  Divider,
-  TextInput,
-  SegmentedButtons,
-  Menu,
-  useTheme,
-} from 'react-native-paper';
-import { useMatch, useMatchEvents, useUpdateMatch, useCreateMatchEvent } from '../hooks';
+import { Text, Button, TextInput, useTheme } from 'react-native-paper';
+// Événements de match (buts, passes…) mis de côté pour l'instant : l'admin saisit seulement le score.
+import { useMatch, useUpdateMatch } from '../hooks';
 import { useApplyMatchSheet } from '../../cards/hooks';
 import { AttendancePanel } from '../../attendance/AttendancePanel';
 import { useAttendance, useMatchAdmin } from '../../attendance/hooks';
 import { Screen, LoadingState, ErrorState, SectionHeader } from '../../../ui';
 import { toErrorMessage } from '../../../lib/errors';
-import type { MatchEventType } from '../../../types/entities';
-
-const EVENT_LABELS: Record<MatchEventType, string> = {
-  goal: 'But',
-  assist: 'Passe',
-  yellow: 'Jaune',
-  red: 'Rouge',
-  mvp: 'MVP',
-};
 
 interface MatchDetailScreenProps {
   matchId: string;
@@ -33,9 +16,7 @@ interface MatchDetailScreenProps {
 export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
   const theme = useTheme();
   const { data: match, isLoading, error, refetch } = useMatch(matchId);
-  const { data: events = [] } = useMatchEvents(matchId);
   const updateMatch = useUpdateMatch();
-  const createEvent = useCreateMatchEvent();
   const applySheet = useApplyMatchSheet();
   const [sheetMsg, setSheetMsg] = useState<string | null>(null);
 
@@ -48,11 +29,6 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
 
   const [homeScore, setHomeScore] = useState('');
   const [awayScore, setAwayScore] = useState('');
-  const [eventType, setEventType] = useState<MatchEventType>('goal');
-  const [eventSide, setEventSide] = useState<'home' | 'away'>('home');
-  const [eventPlayerId, setEventPlayerId] = useState<string | null>(null);
-  const [eventMinute, setEventMinute] = useState('');
-  const [menuOpen, setMenuOpen] = useState(false);
 
   React.useEffect(() => {
     if (match) {
@@ -61,11 +37,6 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
     }
   }, [match?.id, match?.home_score, match?.away_score]);
 
-  const playersForSide = eventSide === 'home' ? homePlayers : awayPlayers;
-  const playerLabel = useMemo(() => {
-    const p = playersForSide.find((x) => x.user_id === eventPlayerId);
-    return p?.display_name ?? 'Choisir un joueur';
-  }, [playersForSide, eventPlayerId]);
 
   if (isLoading) return <LoadingState message="Chargement du match…" />;
   if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
@@ -104,17 +75,6 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
     refetch();
   };
 
-  const addEvent = async () => {
-    if (!eventPlayerId) return;
-    await createEvent.mutateAsync({
-      matchId: match.id,
-      teamSide: eventSide,
-      playerId: eventPlayerId,
-      type: eventType,
-      minute: eventMinute ? Number(eventMinute) : undefined,
-    });
-    setEventMinute('');
-  };
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -171,10 +131,12 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
 
       {isAdmin ? (
         <View style={styles.adminBox}>
-          <SectionHeader title="Admin · Saisir le score" />
+          <View style={styles.adminHeader}>
+            <SectionHeader title="Admin · Saisir le score" />
+          </View>
           <View style={styles.scoreInputs}>
             <TextInput
-              label="Domicile"
+              label="Équipe A"
               value={homeScore}
               onChangeText={setHomeScore}
               keyboardType="number-pad"
@@ -182,7 +144,7 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
               style={styles.scoreInput}
             />
             <TextInput
-              label="Extérieur"
+              label="Équipe B"
               value={awayScore}
               onChangeText={setAwayScore}
               keyboardType="number-pad"
@@ -196,97 +158,16 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
             loading={updateMatch.isPending || applySheet.isPending}
             style={styles.watch}
           >
-            Valider feuille de match
+            Valider le score
           </Button>
           {sheetMsg ? (
             <Text variant="bodySmall" style={{ marginBottom: 12, opacity: 0.85 }}>
               {sheetMsg}
             </Text>
           ) : null}
-
-          <SectionHeader title="Admin · Feuille · Événements" />
-          <SegmentedButtons
-            value={eventSide}
-            onValueChange={(v) => {
-              setEventSide(v as 'home' | 'away');
-              setEventPlayerId(null);
-            }}
-            buttons={[
-              { value: 'home', label: 'Équipe A' },
-              { value: 'away', label: 'Équipe B' },
-            ]}
-            style={styles.seg}
-          />
-          <SegmentedButtons
-            value={eventType}
-            onValueChange={(v) => setEventType(v as MatchEventType)}
-            buttons={[
-              { value: 'goal', label: 'But' },
-              { value: 'assist', label: 'Passe' },
-              { value: 'yellow', label: 'Jaune' },
-              { value: 'red', label: 'Rouge' },
-              { value: 'mvp', label: 'MVP' },
-            ]}
-            style={styles.seg}
-          />
-          <Menu
-            visible={menuOpen}
-            onDismiss={() => setMenuOpen(false)}
-            anchor={
-              <Button mode="outlined" onPress={() => setMenuOpen(true)} style={styles.watch}>
-                {playerLabel}
-              </Button>
-            }
-          >
-            {playersForSide.map((p) => (
-              <Menu.Item
-                key={p.user_id}
-                onPress={() => {
-                  setEventPlayerId(p.user_id);
-                  setMenuOpen(false);
-                }}
-                title={p.display_name}
-              />
-            ))}
-          </Menu>
-          <TextInput
-            label="Minute (optionnel)"
-            value={eventMinute}
-            onChangeText={setEventMinute}
-            keyboardType="number-pad"
-            mode="outlined"
-            style={styles.watch}
-          />
-          <Button
-            mode="contained"
-            onPress={addEvent}
-            disabled={!eventPlayerId}
-            loading={createEvent.isPending}
-            style={styles.watch}
-          >
-            Enregistrer l’événement
-          </Button>
         </View>
       ) : null}
 
-      <Divider style={styles.divider} />
-      <Text variant="titleMedium" style={styles.sectionTitle}>
-        Événements
-      </Text>
-      {events.length === 0 ? (
-        <Text variant="bodyMedium" style={styles.empty}>
-          Aucun événement pour l’instant.
-        </Text>
-      ) : (
-        events.map((e) => (
-          <List.Item
-            key={e.id}
-            title={e.profile?.display_name ?? 'Joueur'}
-            description={`${EVENT_LABELS[e.type]}${e.minute != null ? ` (${e.minute}')` : ''} · ${e.team_side === 'home' ? 'A' : 'B'}`}
-            left={(props) => <List.Icon {...props} icon="soccer" />}
-          />
-        ))
-      )}
     </ScrollView>
   );
 }
@@ -306,11 +187,8 @@ const styles = StyleSheet.create({
   playerLine: { textAlign: 'center', opacity: 0.75 },
   scoreBox: { paddingHorizontal: 8, alignItems: 'center', paddingTop: 4 },
   watch: { marginHorizontal: 20, marginBottom: 12 },
-  divider: { marginVertical: 16 },
-  sectionTitle: { marginHorizontal: 20, marginBottom: 8 },
-  empty: { opacity: 0.7, paddingVertical: 16, paddingHorizontal: 20 },
   adminBox: { marginTop: 8 },
+  adminHeader: { paddingHorizontal: 20 },
   scoreInputs: { flexDirection: 'row', gap: 12, paddingHorizontal: 20 },
   scoreInput: { flex: 1 },
-  seg: { marginHorizontal: 16, marginBottom: 12 },
 });
