@@ -7,6 +7,8 @@ import { toErrorMessage } from '../../lib/errors';
 import { AttendanceUnavailableError, type Attendance, type TeamSide } from './api';
 import { useAttendance, useSetMyAttendance, useSetTeamSide } from './hooks';
 import { matchSheetFilename, renderMatchSheetPng, shareOrDownloadPng } from './matchSheet';
+import { useLeagueRoster } from '../members/hooks';
+import { MiniPlayerCard } from '../cards/MiniPlayerCard';
 
 interface AttendancePanelProps {
   matchId: string;
@@ -17,6 +19,8 @@ interface AttendancePanelProps {
   kickoffAt: string;
   location: string | null;
   leagueName: string | null;
+  /** Pour les mini cartes (photo, note, poste) */
+  leagueId: string | null;
 }
 
 const SIDE_LABEL: Record<TeamSide, string> = { home: 'Équipe A', away: 'Équipe B' };
@@ -29,12 +33,15 @@ export function AttendancePanel({
   kickoffAt,
   location,
   leagueName,
+  leagueId,
 }: AttendancePanelProps) {
   const { tokens } = useAppTheme();
   const { user } = useAuth();
   const { data: rows = [], isLoading, error } = useAttendance(matchId);
   const setMine = useSetMyAttendance(matchId);
   const setSide = useSetTeamSide(matchId);
+  const roster = useLeagueRoster(leagueId ?? undefined);
+  const cardOf = (userId: string) => roster.data?.find((p) => p.player_id === userId);
 
   const t = (style: object) => [style, { fontFamily: fonts.body }];
 
@@ -118,8 +125,24 @@ export function AttendancePanel({
     );
   };
 
+  const mini = (r: Attendance, size: 'xs' | 'sm') => {
+    const c = cardOf(r.user_id);
+    return (
+      <MiniPlayerCard
+        key={r.user_id}
+        size={size}
+        displayName={c?.display_name ?? r.display_name}
+        avatarUrl={c?.avatar_url}
+        overall={c?.overall}
+        position={c?.preferred_position}
+        highlighted={r.user_id === user?.id}
+      />
+    );
+  };
+
   const playerRow = (r: Attendance) => (
     <View key={r.user_id} style={[styles.playerRow, { borderTopColor: tokens.line }]}>
+      {mini(r, 'xs')}
       <Text style={t([styles.playerName, { color: tokens.text }])} numberOfLines={1}>
         {r.display_name}
         {r.user_id === user?.id ? ' (toi)' : ''}
@@ -209,9 +232,31 @@ export function AttendancePanel({
         </Pressable>
       ) : null}
 
-      {group(SIDE_LABEL.home, home)}
-      {group(SIDE_LABEL.away, away)}
-      {group(home.length + away.length > 0 ? 'Pas encore placés' : 'Inscrits', unplaced)}
+      {home.length + away.length > 0 ? (
+        <View style={styles.compo}>
+          {([
+            ['home', home],
+            ['away', away],
+          ] as const).map(([side, list]) => (
+            <View key={side} style={[styles.compoCol, { borderColor: tokens.line }]}>
+              <Text style={[styles.compoTitle, { color: tokens.lime, fontFamily: fonts.display }]}>
+                {SIDE_LABEL[side]} · {list.length}
+              </Text>
+              <View style={styles.compoGrid}>
+                {list.length > 0 ? (
+                  list.map((r) => mini(r, 'sm'))
+                ) : (
+                  <Text style={t([styles.muted, { color: tokens.muted2 }])}>Personne</Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {isAdmin && !locked
+        ? group('Placer les joueurs', [...unplaced, ...home, ...away])
+        : group(home.length + away.length > 0 ? 'En attente d’équipe' : 'Inscrits', unplaced)}
       {notGoing.length > 0 ? (
         <Text style={t([styles.absents, { color: tokens.muted2 }])}>
           Absents : {notGoing.map((r) => r.display_name).join(', ')}
@@ -292,10 +337,15 @@ const styles = StyleSheet.create({
   playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 44,
+    minHeight: 62,
+    paddingVertical: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
-  playerName: { flex: 1, fontSize: 15, fontWeight: '500' },
+  playerName: { flex: 1, fontSize: 15, fontWeight: '500', marginLeft: 10 },
+  compo: { flexDirection: 'row', gap: 8, marginTop: 16 },
+  compoCol: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 8 },
+  compoTitle: { fontSize: 14, fontStyle: 'italic', fontWeight: '700', marginBottom: 8 },
+  compoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   sideToggle: { flexDirection: 'row', gap: 6 },
   sideBtn: {
     width: 36,

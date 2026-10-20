@@ -12,6 +12,7 @@ import { fonts } from '../../../theme/brand';
 import { useAppTheme } from '../../../theme/ThemeContext';
 import { useAuth } from '../../auth/hooks';
 import { useLeagueRoster } from '../../members/hooks';
+import { MiniPlayerCard } from '../../cards/MiniPlayerCard';
 import type { RosterPlayer } from '../../members/api';
 import { awardBlurb } from '../seasonAwardsApi';
 import {
@@ -115,16 +116,14 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
             {index + 1}
           </Text>
         ) : null}
-        <View style={[styles.avatar, { backgroundColor: chosen ? tokens.lime : tokens.surface2 }]}>
-          <Text
-            style={[
-              styles.avatarText,
-              { color: chosen ? tokens.onLime : tokens.text, fontFamily: fonts.display },
-            ]}
-          >
-            {item.display_name.slice(0, 1).toUpperCase()}
-          </Text>
-        </View>
+        <MiniPlayerCard
+          size="xs"
+          displayName={item.display_name}
+          avatarUrl={item.avatar_url}
+          overall={item.overall}
+          position={item.preferred_position}
+          highlighted={chosen}
+        />
         <Text style={[styles.name, { color: tokens.text, fontFamily: fonts.body }]} numberOfLines={1}>
           {item.display_name}
           {me ? ' (toi)' : ''}
@@ -286,15 +285,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    minHeight: 60,
+    minHeight: 66,
+    paddingVertical: 6,
     borderWidth: 1,
     borderRadius: 14,
     paddingHorizontal: 12,
     marginBottom: 8,
   },
   rank: { width: 22, fontSize: 16, fontStyle: 'italic', fontWeight: '700', textAlign: 'center' },
-  avatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontSize: 16, fontStyle: 'italic', fontWeight: '700' },
   name: { flex: 1, fontSize: 16, fontWeight: '600' },
   votes: { fontSize: 14, fontWeight: '700' },
   mine: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },

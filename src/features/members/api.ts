@@ -43,6 +43,9 @@ export interface RosterPlayer {
   display_name: string;
   avatar_url: string | null;
   role: 'admin' | 'player';
+  /** Note de la carte et poste (migration 010 ; absents avant) */
+  overall?: number | null;
+  preferred_position?: string | null;
 }
 
 /** Tous les joueurs d'une ligue, noms compris (fonction league_roster, migration 006). */

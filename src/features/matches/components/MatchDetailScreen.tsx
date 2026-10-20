@@ -5,7 +5,7 @@ import { Text, Button, TextInput, useTheme } from 'react-native-paper';
 import { useMatch, useUpdateMatch } from '../hooks';
 import { useApplyMatchSheet } from '../../cards/hooks';
 import { AttendancePanel } from '../../attendance/AttendancePanel';
-import { useAttendance, useMatchAdmin } from '../../attendance/hooks';
+import { useMatchAdmin } from '../../attendance/hooks';
 import { Screen, LoadingState, ErrorState, SectionHeader } from '../../../ui';
 import { toErrorMessage } from '../../../lib/errors';
 
@@ -22,10 +22,6 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
 
   // Admin = gérant de la ligue (manager_id en legacy, created_by en V1)
   const { isAdmin, league } = useMatchAdmin(match?.season_id);
-  // Les équipes viennent des inscriptions : l'admin compose parmi les inscrits.
-  const { data: attendance = [] } = useAttendance(matchId);
-  const homePlayers = attendance.filter((a) => a.status === 'in' && a.team_side === 'home');
-  const awayPlayers = attendance.filter((a) => a.status === 'in' && a.team_side === 'away');
 
   const [homeScore, setHomeScore] = useState('');
   const [awayScore, setAwayScore] = useState('');
@@ -89,11 +85,6 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
           <Text variant="titleMedium" style={styles.teamName}>
             Équipe A
           </Text>
-          {homePlayers.map((p) => (
-            <Text key={p.user_id} variant="bodySmall" style={styles.playerLine}>
-              {p.display_name}
-            </Text>
-          ))}
         </View>
         <View style={styles.scoreBox}>
           {played ? (
@@ -108,11 +99,6 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
           <Text variant="titleMedium" style={styles.teamName}>
             Équipe B
           </Text>
-          {awayPlayers.map((p) => (
-            <Text key={p.user_id} variant="bodySmall" style={styles.playerLine}>
-              {p.display_name}
-            </Text>
-          ))}
         </View>
       </View>
 
@@ -123,6 +109,7 @@ export function MatchDetailScreen({ matchId }: MatchDetailScreenProps) {
         kickoffAt={match.kickoff_at}
         location={match.location}
         leagueName={league?.name ?? null}
+        leagueId={league?.id ?? null}
       />
 
       {videoUrl ? (
@@ -191,7 +178,6 @@ const styles = StyleSheet.create({
   },
   teamCol: { flex: 1 },
   teamName: { textAlign: 'center', marginBottom: 6 },
-  playerLine: { textAlign: 'center', opacity: 0.75 },
   scoreBox: { paddingHorizontal: 8, alignItems: 'center', paddingTop: 4 },
   watch: { marginHorizontal: 20, marginBottom: 12 },
   adminBox: { marginTop: 8 },

@@ -14,6 +14,7 @@ import { fonts } from '../../theme/brand';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../auth/hooks';
 import { useLeagueRoster } from '../members/hooks';
+import { MiniPlayerCard } from '../cards/MiniPlayerCard';
 import { awardBlurb } from '../awards/seasonAwardsApi';
 import {
   useCreateAward,
@@ -48,8 +49,8 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
   const [formOpen, setFormOpen] = useState(false);
 
   const isAdmin = !!user?.id && !!league && user.id === league.created_by;
-  const nameOf = (playerId: string) =>
-    roster.data?.find((p) => p.player_id === playerId)?.display_name ?? 'Joueur';
+  const playerOf = (playerId: string) => roster.data?.find((p) => p.player_id === playerId);
+  const nameOf = (playerId: string) => playerOf(playerId)?.display_name ?? 'Joueur';
 
   const inputColors = [
     {
@@ -126,6 +127,7 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
           {list.map((award) => {
             const blurb = awardBlurb(award);
             const choice = myVotes.data?.[award.id];
+            const chosen = choice ? playerOf(choice) : undefined;
             return (
               <Pressable
                 key={award.id}
@@ -152,6 +154,15 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                     {choice ? `Ton vote : ${nameOf(choice)}` : award.is_open ? 'À voter' : 'Pas de vote'}
                   </Text>
                 </View>
+                {chosen ? (
+                  <MiniPlayerCard
+                    size="xs"
+                    displayName={chosen.display_name}
+                    avatarUrl={chosen.avatar_url}
+                    overall={chosen.overall}
+                    position={chosen.preferred_position}
+                  />
+                ) : null}
                 <View style={[styles.badge, { borderColor: award.is_open ? tokens.lime : tokens.line }]}>
                   <Text
                     style={[
