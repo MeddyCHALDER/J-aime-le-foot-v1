@@ -35,15 +35,19 @@ export function useCreateMatch() {
       seasonId,
       kickoffAt,
       location,
+      registrationOpensAt,
     }: {
       seasonId: string;
       kickoffAt: string;
       location?: string;
-    }) => api.createMatch(seasonId, kickoffAt, location),
+      registrationOpensAt?: string | null;
+    }) => api.createMatch(seasonId, kickoffAt, location, registrationOpensAt),
     onSuccess: (match, variables) => {
       qc.invalidateQueries({ queryKey: matchesKeys.bySeason(variables.seasonId) });
-      // Un match créé est ouvert aux inscriptions : on prévient la ligue.
-      void announceMatchOpen(match.id);
+      // Inscriptions ouvertes tout de suite : on prévient la ligue maintenant.
+      // Ouverture programmée : la tâche planifiée (migration 011) préviendra à l'heure.
+      const opens = match.registration_opens_at ?? variables.registrationOpensAt;
+      if (!opens || new Date(opens) <= new Date()) void announceMatchOpen(match.id);
     },
   });
 }

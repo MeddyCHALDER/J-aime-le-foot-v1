@@ -149,7 +149,10 @@ export function MatchesTabScreen({
                     {featured.home_score} – {featured.away_score}
                   </Text>
                 ) : (
-                  <AttendanceQuick matchId={featured.id} />
+                  <AttendanceQuick
+                    matchId={featured.id}
+                    registrationOpensAt={featured.registration_opens_at}
+                  />
                 )}
               </Pressable>
             ) : (

@@ -5,16 +5,38 @@ import { useAppTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../auth/hooks';
 import { AttendanceUnavailableError } from './api';
 import { useAttendance, useSetMyAttendance } from './hooks';
+import { useRegistrationOpening } from './useRegistrationOpening';
 
 /** Inscription en un geste sur la carte du prochain match (onglet Matchs). */
-export function AttendanceQuick({ matchId }: { matchId: string }) {
+export function AttendanceQuick({
+  matchId,
+  registrationOpensAt,
+}: {
+  matchId: string;
+  registrationOpensAt?: string | null;
+}) {
   const { tokens } = useAppTheme();
   const { user } = useAuth();
   const { data: rows = [], error } = useAttendance(matchId);
   const setMine = useSetMyAttendance(matchId);
+  const opening = useRegistrationOpening(registrationOpensAt);
 
   // Sans la migration 005, on n'affiche rien plutôt qu'une erreur sur l'accueil.
   if (error instanceof AttendanceUnavailableError) return null;
+
+  // Ouverture programmée : on annonce l'heure plutôt que des boutons inactifs.
+  if (!opening.open) {
+    return (
+      <View style={styles.wrap}>
+        <Text style={[styles.soon, { color: tokens.lime, fontFamily: fonts.body }]}>
+          Inscriptions le {opening.when}
+        </Text>
+        <Text style={[styles.count, { color: tokens.muted, fontFamily: fonts.body, marginTop: 4 }]}>
+          Ouverture {opening.countdown} · une notification t’avertira
+        </Text>
+      </View>
+    );
+  }
 
   const mine = rows.find((r) => r.user_id === user?.id)?.status;
   const going = rows.filter((r) => r.status === 'in').length;
@@ -76,4 +98,5 @@ const styles = StyleSheet.create({
   },
   btnText: { fontSize: 14, fontWeight: '700' },
   count: { marginTop: 10, fontSize: 13 },
+  soon: { fontSize: 15, fontWeight: '700' },
 });

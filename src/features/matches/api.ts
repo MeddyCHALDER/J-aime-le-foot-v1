@@ -25,6 +25,7 @@ function normalizeMatch(row: Record<string, unknown>): Match {
     away_score: Number(row.away_score ?? 0),
     stream_url: (row.stream_url as string | null) ?? null,
     replay_url: (row.replay_url as string | null) ?? null,
+    registration_opens_at: (row.registration_opens_at as string | null) ?? null,
     created_at: String(row.created_at ?? ''),
     updated_at: row.updated_at ? String(row.updated_at) : undefined,
   };
@@ -62,8 +63,12 @@ export async function fetchMatchById(id: string): Promise<Match | null> {
 export async function createMatch(
   seasonId: string,
   kickoffAt: string,
-  location?: string
+  location?: string,
+  /** ISO ; absent = inscriptions ouvertes tout de suite */
+  registrationOpensAt?: string | null
 ): Promise<Match> {
+  // Ajouté seulement si renseigné : la colonne n'existe qu'après la migration 011.
+  const opening = registrationOpensAt ? { registration_opens_at: registrationOpensAt } : {};
   // V1 (kickoff_at + location)
   {
     const res = await supabase
@@ -75,6 +80,7 @@ export async function createMatch(
         status: 'scheduled',
         home_score: 0,
         away_score: 0,
+        ...opening,
       })
       .select()
       .single();
@@ -107,6 +113,7 @@ export async function createMatch(
       status: 'scheduled',
       home_score: 0,
       away_score: 0,
+      ...opening,
     })
     .select()
     .single();
@@ -117,7 +124,17 @@ export async function createMatch(
 export async function updateMatch(
   id: string,
   updates: Partial<
-    Pick<Match, 'kickoff_at' | 'location' | 'status' | 'home_score' | 'away_score' | 'stream_url' | 'replay_url'>
+    Pick<
+      Match,
+      | 'kickoff_at'
+      | 'location'
+      | 'status'
+      | 'home_score'
+      | 'away_score'
+      | 'stream_url'
+      | 'replay_url'
+      | 'registration_opens_at'
+    >
   >
 ): Promise<Match> {
   const payload: Record<string, unknown> = { ...updates };

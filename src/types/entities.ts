@@ -52,6 +52,8 @@ export interface Match {
   away_score: number;
   stream_url: string | null;
   replay_url: string | null;
+  /** Ouverture programmée des inscriptions (null = ouvertes), migration 011 */
+  registration_opens_at?: string | null;
   created_at: string;
   updated_at?: string;
 }

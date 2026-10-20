@@ -9,6 +9,9 @@ import { useAttendance, useSetMyAttendance, useSetTeamSide } from './hooks';
 import { matchSheetFilename, renderMatchSheetPng, shareOrDownloadPng } from './matchSheet';
 import { useLeagueRoster } from '../members/hooks';
 import { MiniPlayerCard } from '../cards/MiniPlayerCard';
+import { useRegistrationOpening } from './useRegistrationOpening';
+import { useUpdateMatch } from '../matches/hooks';
+import { announceMatchOpen } from '../notifications/api';
 
 interface AttendancePanelProps {
   matchId: string;
@@ -21,6 +24,8 @@ interface AttendancePanelProps {
   leagueName: string | null;
   /** Pour les mini cartes (photo, note, poste) */
   leagueId: string | null;
+  /** Ouverture programmée des inscriptions (null = ouvertes) */
+  registrationOpensAt: string | null | undefined;
 }
 
 const SIDE_LABEL: Record<TeamSide, string> = { home: 'Équipe A', away: 'Équipe B' };
@@ -34,6 +39,7 @@ export function AttendancePanel({
   location,
   leagueName,
   leagueId,
+  registrationOpensAt,
 }: AttendancePanelProps) {
   const { tokens } = useAppTheme();
   const { user } = useAuth();
@@ -41,6 +47,14 @@ export function AttendancePanel({
   const setMine = useSetMyAttendance(matchId);
   const setSide = useSetTeamSide(matchId);
   const roster = useLeagueRoster(leagueId ?? undefined);
+  const opening = useRegistrationOpening(registrationOpensAt);
+  const updateMatch = useUpdateMatch();
+  // Avant l'heure, seuls les admins peuvent répondre (la base refuse les autres)
+  const rsvpLocked = locked || (!opening.open && !isAdmin);
+  const openNow = async () => {
+    await updateMatch.mutateAsync({ id: matchId, updates: { registration_opens_at: null } });
+    void announceMatchOpen(matchId);
+  };
   const cardOf = (userId: string) => roster.data?.find((p) => p.player_id === userId);
 
   const t = (style: object) => [style, { fontFamily: fonts.body }];
@@ -102,15 +116,15 @@ export function AttendancePanel({
     return (
       <Pressable
         onPress={() => setMine.mutate(status)}
-        disabled={locked || setMine.isPending}
+        disabled={rsvpLocked || setMine.isPending}
         accessibilityRole="button"
-        accessibilityState={{ selected: on, disabled: locked }}
+        accessibilityState={{ selected: on, disabled: rsvpLocked }}
         style={[
           styles.rsvp,
           { borderColor: on ? (positive ? tokens.lime : tokens.errorText) : tokens.line },
           on && positive && { backgroundColor: tokens.lime },
           on && !positive && { backgroundColor: tokens.errorBg },
-          locked && { opacity: 0.5 },
+          rsvpLocked && { opacity: 0.5 },
         ]}
       >
         <Text
@@ -191,12 +205,39 @@ export function AttendancePanel({
       <Text style={[styles.question, { color: tokens.text, fontFamily: fonts.display }]}>
         {locked
           ? 'Match terminé'
-          : mine?.status === 'in'
+          : !opening.open && !mine
+            ? 'Inscriptions bientôt'
+            : mine?.status === 'in'
             ? 'Tu joues'
             : mine?.status === 'out'
               ? 'Tu ne viens pas'
               : 'Tu viens ?'}
       </Text>
+
+      {!locked && !opening.open ? (
+        <View style={[styles.opening, { backgroundColor: tokens.infoBg, borderColor: tokens.lime }]}>
+          <Text style={t([styles.openingText, { color: tokens.infoText }])}>
+            Ouverture le {opening.when} · {opening.countdown}
+          </Text>
+          {isAdmin ? (
+            <>
+              <Text style={t([styles.openingHint, { color: tokens.muted }])}>
+                Les joueurs seront prévenus par notification à l’ouverture.
+              </Text>
+              <Pressable
+                onPress={openNow}
+                disabled={updateMatch.isPending}
+                accessibilityRole="button"
+                style={[styles.openNow, { borderColor: tokens.lime }]}
+              >
+                <Text style={t([styles.openNowText, { color: tokens.lime }])}>
+                  {updateMatch.isPending ? 'Ouverture…' : 'Ouvrir maintenant'}
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={styles.rsvpRow}>
         {rsvpButton('in', 'Je viens')}
@@ -304,6 +345,18 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 11, fontWeight: '600', letterSpacing: 1.8, textTransform: 'uppercase' },
   question: { fontSize: 24, fontStyle: 'italic', fontWeight: '700', marginTop: 6, marginBottom: 14 },
   rsvpRow: { flexDirection: 'row', gap: 10 },
+  opening: { borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 14 },
+  openingText: { fontSize: 14, fontWeight: '700' },
+  openingHint: { fontSize: 12, marginTop: 4 },
+  openNow: {
+    marginTop: 10,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  openNowText: { fontSize: 14, fontWeight: '700' },
   rsvp: {
     flex: 1,
     height: 48,

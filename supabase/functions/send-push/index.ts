@@ -3,7 +3,11 @@
  *   { kind: 'config' }                     → clé publique VAPID (abonnement côté app)
  *   { kind: 'match_open', matchId }        → inscriptions ouvertes pour un match
  *   { kind: 'vote_open', awardIds: [...] } → votes ouverts pour un ou plusieurs trophées
+ *   { kind: 'due' }                        → inscriptions arrivées à leur heure d'ouverture
+ *                                            (appelé chaque minute par pg_cron, migration 011)
  * Les annonces sont réservées à l'admin de la ligue et ne partent qu'une fois (table push_sent).
+ * « due » n'a pas besoin d'utilisateur : il n'envoie que des annonces dont l'heure est passée
+ * et jamais envoyées, donc l'appeler en avance ou deux fois ne change rien.
  *
  * Secrets (Dashboard Supabase → Edge Functions → Secrets) :
  *   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY  (npx web-push generate-vapid-keys)
@@ -19,6 +23,12 @@ const corsHeaders = {
 };
 
 type Payload = { title: string; body: string; url: string; tag: string };
+type Announce = {
+  leagueId: string;
+  refs: string[];
+  payload: (leagueName: string, fresh: Set<string>) => Payload;
+};
+type Vapid = { subject: string; publicKey: string; privateKey: string };
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -37,6 +47,19 @@ Deno.serve(async (req) => {
       return json({ error: 'VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY manquants' }, 500);
     }
 
+    const vapid: Vapid = { subject: VAPID_SUBJECT, publicKey: VAPID_PUBLIC_KEY, privateKey: VAPID_PRIVATE_KEY };
+    const body = await req.json().catch(() => ({}));
+    const kind = String(body.kind ?? '');
+
+    // Client service : lit les abonnements des autres membres, invisibles sous RLS.
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
+      auth: { persistSession: false },
+    });
+
+    if (kind === 'due') {
+      return json(await announceDueOpenings(admin, vapid));
+    }
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) return json({ error: 'Non authentifié' }, 401);
 
@@ -50,19 +73,11 @@ Deno.serve(async (req) => {
     } = await asUser.auth.getUser();
     if (userError || !user) return json({ error: 'Session invalide' }, 401);
 
-    const body = await req.json().catch(() => ({}));
-    const kind = String(body.kind ?? '');
-
     if (kind === 'config') {
       return json({ publicKey: VAPID_PUBLIC_KEY });
     }
 
-    // Client service : lit les abonnements des autres membres, invisibles sous RLS.
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
-      auth: { persistSession: false },
-    });
-
-    let announce: { leagueId: string; refs: string[]; payload: (leagueName: string, fresh: Set<string>) => Payload };
+    let announce: Announce;
 
     if (kind === 'match_open') {
       const matchId = String(body.matchId ?? '');
@@ -73,21 +88,13 @@ Deno.serve(async (req) => {
 
       const { data: match } = await admin.from('matches').select('*').eq('id', matchId).maybeSingle();
       if (!match) return json({ error: 'Match introuvable' }, 404);
-      const leagueId = await leagueOfSeason(admin, match.season_id);
-      if (!leagueId) return json({ error: 'Ligue introuvable' }, 404);
-
-      const when = formatKickoff(match.kickoff_at ?? match.match_date);
-      const where = match.location ? ` · ${match.location}` : '';
-      announce = {
-        leagueId,
-        refs: [matchId],
-        payload: (leagueName) => ({
-          title: `Inscriptions ouvertes · ${leagueName}`,
-          body: `Match ${when}${where}. Tu viens ?`,
-          url: `/?open=match&id=${matchId}`,
-          tag: `match-${matchId}`,
-        }),
-      };
+      // Ouverture programmée plus tard : c'est la tâche planifiée qui annoncera.
+      if (match.registration_opens_at && new Date(match.registration_opens_at) > new Date()) {
+        return json({ ok: true, sent: 0, scheduled: match.registration_opens_at });
+      }
+      const built = await matchAnnounce(admin, match);
+      if (!built) return json({ error: 'Ligue introuvable' }, 404);
+      announce = built;
     } else if (kind === 'vote_open') {
       const awardIds: string[] = Array.isArray(body.awardIds)
         ? body.awardIds.map(String).filter(Boolean)
@@ -135,72 +142,130 @@ Deno.serve(async (req) => {
       return json({ error: 'kind inconnu' }, 400);
     }
 
-    // Une annonce ne part qu'une fois, même si l'app rappelle la fonction.
-    const { data: logged, error: logError } = await admin
-      .from('push_sent')
-      .upsert(
-        announce.refs.map((ref_id) => ({ kind, ref_id })),
-        { onConflict: 'kind,ref_id', ignoreDuplicates: true }
-      )
-      .select('ref_id');
-    if (logError) throw logError;
-    const fresh = new Set((logged ?? []).map((r) => r.ref_id as string));
-    if (fresh.size === 0) return json({ ok: true, sent: 0, already: true });
-
-    const { data: league } = await admin
-      .from('leagues')
-      .select('name')
-      .eq('id', announce.leagueId)
-      .maybeSingle();
-    const payload = announce.payload(league?.name ?? 'Ta ligue', fresh);
-
-    const { data: members } = await admin
-      .from('league_members')
-      .select('player_id')
-      .eq('league_id', announce.leagueId);
-    const recipients = (members ?? [])
-      .map((m) => m.player_id as string)
-      .filter((id) => id !== user.id);
-    if (recipients.length === 0) return json({ ok: true, sent: 0 });
-
-    const { data: subs } = await admin
-      .from('push_subscriptions')
-      .select('endpoint, p256dh, auth')
-      .in('user_id', recipients);
-
-    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
-    const message = JSON.stringify(payload);
-    const gone: string[] = [];
-    let sent = 0;
-
-    await Promise.all(
-      (subs ?? []).map(async (s) => {
-        try {
-          await webpush.sendNotification(
-            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-            message,
-            // 2 jours : un téléphone éteint le week-end reçoit encore l'annonce.
-            { TTL: 172800 }
-          );
-          sent += 1;
-        } catch (e) {
-          const status = (e as { statusCode?: number }).statusCode;
-          // 404 / 410 : l'abonnement n'existe plus (app désinstallée, permission retirée).
-          if (status === 404 || status === 410) gone.push(s.endpoint);
-          else console.error('Push échoué', status, (e as Error).message);
-        }
-      })
-    );
-
-    if (gone.length) {
-      await admin.from('push_subscriptions').delete().in('endpoint', gone);
-    }
-
-    return json({ ok: true, sent, devices: subs?.length ?? 0 });
+    return json(await deliver(admin, vapid, kind, announce, user.id));
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Erreur serveur' }, 500);
   }
 });
+
+/** Annonce « inscriptions ouvertes » d'un match (ligne de la table matches). */
+async function matchAnnounce(
+  admin: SupabaseClient,
+  match: Record<string, unknown>
+): Promise<Announce | null> {
+  const matchId = String(match.id);
+  const leagueId = await leagueOfSeason(admin, String(match.season_id));
+  if (!leagueId) return null;
+  const when = formatKickoff((match.kickoff_at ?? match.match_date) as string | null);
+  const where = match.location ? ` · ${match.location}` : '';
+  return {
+    leagueId,
+    refs: [matchId],
+    payload: (leagueName) => ({
+      title: `Inscriptions ouvertes · ${leagueName}`,
+      body: `Match ${when}${where}. Tu viens ?`,
+      url: `/?open=match&id=${matchId}`,
+      tag: `match-${matchId}`,
+    }),
+  };
+}
+
+/** Matchs dont l'heure d'ouverture est passée (dernières 24 h) et pas encore annoncés. */
+async function announceDueOpenings(admin: SupabaseClient, vapid: Vapid) {
+  const now = new Date();
+  const since = new Date(now.getTime() - 24 * 3600 * 1000);
+  const { data: due, error } = await admin
+    .from('matches')
+    .select('*')
+    .lte('registration_opens_at', now.toISOString())
+    .gt('registration_opens_at', since.toISOString());
+  if (error) throw error;
+
+  let sent = 0;
+  for (const match of due ?? []) {
+    const built = await matchAnnounce(admin, match);
+    if (!built) continue;
+    // Pas d'expéditeur : toute la ligue est prévenue, admin compris.
+    const res = await deliver(admin, vapid, 'match_open', built, null);
+    sent += res.sent;
+  }
+  return { ok: true, matches: due?.length ?? 0, sent };
+}
+
+/**
+ * Envoie une annonce aux membres de la ligue (sauf l'expéditeur), une seule fois par
+ * référence grâce à push_sent, et nettoie les abonnements expirés.
+ */
+async function deliver(
+  admin: SupabaseClient,
+  vapid: Vapid,
+  kind: string,
+  announce: Announce,
+  senderId: string | null
+): Promise<{ ok: true; sent: number; devices?: number; already?: boolean }> {
+  // Une annonce ne part qu'une fois, même si l'app rappelle la fonction.
+  const { data: logged, error: logError } = await admin
+    .from('push_sent')
+    .upsert(
+      announce.refs.map((ref_id) => ({ kind, ref_id })),
+      { onConflict: 'kind,ref_id', ignoreDuplicates: true }
+    )
+    .select('ref_id');
+  if (logError) throw logError;
+  const fresh = new Set((logged ?? []).map((r) => r.ref_id as string));
+  if (fresh.size === 0) return { ok: true, sent: 0, already: true };
+
+  const { data: league } = await admin
+    .from('leagues')
+    .select('name')
+    .eq('id', announce.leagueId)
+    .maybeSingle();
+  const payload = announce.payload(league?.name ?? 'Ta ligue', fresh);
+
+  const { data: members } = await admin
+    .from('league_members')
+    .select('player_id')
+    .eq('league_id', announce.leagueId);
+  const recipients = (members ?? [])
+    .map((m) => m.player_id as string)
+    .filter((id) => id !== senderId);
+  if (recipients.length === 0) return { ok: true, sent: 0 };
+
+  const { data: subs } = await admin
+    .from('push_subscriptions')
+    .select('endpoint, p256dh, auth')
+    .in('user_id', recipients);
+
+  webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
+  const message = JSON.stringify(payload);
+  const gone: string[] = [];
+  let sent = 0;
+
+  await Promise.all(
+    (subs ?? []).map(async (s) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          message,
+          // 2 jours : un téléphone éteint le week-end reçoit encore l'annonce.
+          { TTL: 172800 }
+        );
+        sent += 1;
+      } catch (e) {
+        const status = (e as { statusCode?: number }).statusCode;
+        // 404 / 410 : l'abonnement n'existe plus (app désinstallée, permission retirée).
+        if (status === 404 || status === 410) gone.push(s.endpoint);
+        else console.error('Push échoué', status, (e as Error).message);
+      }
+    })
+  );
+
+  if (gone.length) {
+    await admin.from('push_subscriptions').delete().in('endpoint', gone);
+  }
+
+  return { ok: true, sent, devices: subs?.length ?? 0 };
+}
 
 async function leagueOfSeason(admin: SupabaseClient, seasonId: string): Promise<string | null> {
   const { data } = await admin.from('seasons').select('league_id').eq('id', seasonId).maybeSingle();

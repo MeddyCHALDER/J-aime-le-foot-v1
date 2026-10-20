@@ -8,6 +8,8 @@ interface KickoffPickerProps {
   /** Date et heure locales au format AAAA-MM-JJTHH:mm */
   value: string;
   onChange: (value: string) => void;
+  /** Libellés des deux champs (par défaut : coup d'envoi) */
+  labels?: [string, string];
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -23,7 +25,7 @@ function todayLocal() {
  * Web / PWA : sélecteurs natifs (calendrier et heure du téléphone) via <input type="date|time">.
  * Natif : champ texte en attendant un picker natif.
  */
-export function KickoffPicker({ value, onChange }: KickoffPickerProps) {
+export function KickoffPicker({ value, onChange, labels = ['Date *', 'Heure *'] }: KickoffPickerProps) {
   const { tokens, scheme } = useAppTheme();
   const [date = '', time = ''] = value.split('T');
 
@@ -66,7 +68,7 @@ export function KickoffPicker({ value, onChange }: KickoffPickerProps) {
   return (
     <View style={styles.row}>
       <View style={styles.date}>
-        {label('Date *')}
+        {label(labels[0])}
         <input
           type="date"
           aria-label="Date du match"
@@ -77,7 +79,7 @@ export function KickoffPicker({ value, onChange }: KickoffPickerProps) {
         />
       </View>
       <View style={styles.time}>
-        {label('Heure *')}
+        {label(labels[1])}
         <input
           type="time"
           aria-label="Heure du match"
