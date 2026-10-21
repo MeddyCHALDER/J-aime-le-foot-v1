@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
 
       const { data: awards } = await admin
         .from('season_awards')
-        .select('id, season_id, title, is_open, created_at')
+        .select('*')
         .in('id', awardIds)
         .order('created_at');
       const open = (awards ?? []).filter((a) => a.is_open);
@@ -119,11 +119,19 @@ Deno.serve(async (req) => {
         payload: (leagueName, fresh) => {
           const sent = open.filter((a) => fresh.has(a.id));
           const single = sent.length === 1 ? sent[0] : null;
+          // Ouverture programmée (migration 011) : on annonce la date plutôt qu'un vote immédiat.
+          const later = sent
+            .map((a) => a.opens_at as string | null | undefined)
+            .filter((iso): iso is string => !!iso && Date.parse(iso) > Date.now())
+            .sort()[0];
+          const names = sent.map((a) => a.title).join(', ');
           return {
-            title: `Votes ouverts · ${leagueName}`,
-            body: single
-              ? `« ${single.title} » : choisis ton joueur.`
-              : `${sent.length} trophées à voter : ${sent.map((a) => a.title).join(', ')}.`,
+            title: later ? `Votes bientôt ouverts · ${leagueName}` : `Votes ouverts · ${leagueName}`,
+            body: later
+              ? `${single ? `« ${single.title} »` : names} : vote à partir du ${formatKickoff(later)}.`
+              : single
+                ? `« ${single.title} » : choisis ton joueur.`
+                : `${sent.length} trophées à voter : ${names}.`,
             url: single
               ? `/?open=award&id=${single.id}&league=${leagueId}`
               : `/?open=votes`,
@@ -207,7 +215,7 @@ async function leagueOfSeason(admin: SupabaseClient, seasonId: string): Promise<
   return (data?.league_id as string | undefined) ?? null;
 }
 
-/** « samedi 24 octobre à 20:00 », à l'heure de Paris (la fonction tourne en UTC). */
+/** « samedi 24 octobre à 20:00 », à l'heure de Paris (matchs et ouverture des votes) (la fonction tourne en UTC). */
 function formatKickoff(iso: string | null | undefined): string {
   if (!iso) return 'à venir';
   const d = new Date(iso);

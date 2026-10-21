@@ -13,13 +13,14 @@ import { useAppTheme } from '../../../theme/ThemeContext';
 import { useAuth } from '../../auth/hooks';
 import { useLeagueRoster } from '../../members/hooks';
 import type { RosterPlayer } from '../../members/api';
-import { awardBlurb } from '../seasonAwardsApi';
+import { awardBlurb, formatOpening, votingStarted } from '../seasonAwardsApi';
 import {
   useAward,
   useAwardTally,
   useCloseAward,
   useDeleteAward,
   useMyVotes,
+  useNowUntil,
   useUpdateAwardPositions,
   useVoteForPlayer,
 } from '../seasonAwardsHooks';
@@ -53,6 +54,10 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
   const myVotes = useMyVotes([awardId], user?.id);
   const vote = useVoteForPlayer(awardId, user?.id);
   const isOpen = award.data?.is_open ?? true;
+  const now = useNowUntil([award.data?.opens_at]);
+  // Trophée visible mais vote pas encore commencé (ouverture programmée).
+  const started = award.data ? votingStarted(award.data, now) : isOpen;
+  const opensAt = isOpen && !started ? award.data?.opens_at : null;
   // Voix masquées pendant le vote pour ne pas influencer ; visibles une fois clôturé.
   const tally = useAwardTally(awardId, !isOpen);
   const close = useCloseAward(award.data?.season_id);
@@ -116,7 +121,7 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
     const me = item.player_id === user?.id;
     const chosen = item.player_id === myChoice;
     const votes = tally.data?.[item.player_id] ?? 0;
-    const disabled = !isOpen || me || vote.isPending;
+    const disabled = !started || me || vote.isPending;
     return (
       <Pressable
         onPress={() => castVote(item.player_id)}
@@ -171,7 +176,7 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
       ListHeaderComponent={
         <View style={styles.header}>
           <Text style={[styles.eyebrow, { color: tokens.lime, fontFamily: fonts.body }]}>
-            {isOpen ? 'Vote ouvert' : 'Résultats'}
+            {opensAt ? 'Vote bientôt ouvert' : isOpen ? 'Vote ouvert' : 'Résultats'}
           </Text>
           <Text style={[styles.title, { color: tokens.text, fontFamily: fonts.display }]}>
             {award.data.title}
@@ -190,11 +195,13 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
             <Text style={[styles.choiceText, { color: choiceName ? tokens.lime : tokens.muted, fontFamily: fonts.body }]}>
               {choiceName
                 ? `Ton vote : ${choiceName}`
-                : isOpen
-                  ? 'Touche un joueur pour voter.'
-                  : 'Tu n’as pas voté.'}
+                : opensAt
+                  ? `Tu pourras voter à partir du ${formatOpening(opensAt)}.`
+                  : isOpen
+                    ? 'Touche un joueur pour voter.'
+                    : 'Tu n’as pas voté.'}
             </Text>
-            {isOpen && choiceName ? (
+            {started && choiceName ? (
               <Text style={[styles.choiceHint, { color: tokens.muted2, fontFamily: fonts.body }]}>
                 Tu peux changer d’avis jusqu’à la clôture.
               </Text>

@@ -14,10 +14,11 @@ import { fonts } from '../../theme/brand';
 import { useAppTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../auth/hooks';
 import { useLeagueRoster } from '../members/hooks';
-import { awardBlurb } from '../awards/seasonAwardsApi';
+import { awardBlurb, formatOpening, votingStarted } from '../awards/seasonAwardsApi';
 import {
   useCreateAward,
   useMyVotes,
+  useNowUntil,
   useOpenSeasonAwards,
   useSeasonAwards,
 } from '../awards/seasonAwardsHooks';
@@ -49,6 +50,7 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
   const [newDesc, setNewDesc] = useState('');
   const [newPositions, setNewPositions] = useState<string[]>([]);
   const [formOpen, setFormOpen] = useState(false);
+  const now = useNowUntil((awards.data ?? []).map((a) => a.opens_at));
 
   const isAdmin = !!user?.id && !!league && user.id === league.created_by;
   const nameOf = (playerId: string) =>
@@ -130,12 +132,21 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
             const blurb = awardBlurb(award);
             const choice = myVotes.data?.[award.id];
             const reserved = positionsLabel(award.positions);
+            const started = votingStarted(award, now);
+            const pending = award.is_open && !started;
+            const status = choice
+              ? `Ton vote : ${nameOf(choice)}`
+              : pending && award.opens_at
+                ? `Votes dès ${formatOpening(award.opens_at)}`
+                : award.is_open
+                  ? 'À voter'
+                  : 'Pas de vote';
             return (
               <Pressable
                 key={award.id}
                 onPress={() => onAwardPress(award.id, league.id)}
                 accessibilityRole="button"
-                accessibilityLabel={`${award.title}, ${choice ? `ton vote : ${nameOf(choice)}` : 'pas encore voté'}`}
+                accessibilityLabel={`${award.title}, ${status}`}
                 style={[styles.card, { backgroundColor: tokens.surface, borderColor: choice ? tokens.lime : tokens.line }]}
               >
                 <View style={{ flex: 1 }}>
@@ -158,17 +169,17 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                       { color: choice ? tokens.lime : tokens.muted2, fontFamily: fonts.body },
                     ]}
                   >
-                    {choice ? `Ton vote : ${nameOf(choice)}` : award.is_open ? 'À voter' : 'Pas de vote'}
+                    {status}
                   </Text>
                 </View>
-                <View style={[styles.badge, { borderColor: award.is_open ? tokens.lime : tokens.line }]}>
+                <View style={[styles.badge, { borderColor: started ? tokens.lime : tokens.line }]}>
                   <Text
                     style={[
                       styles.badgeText,
-                      { color: award.is_open ? tokens.lime : tokens.muted, fontFamily: fonts.body },
+                      { color: started ? tokens.lime : tokens.muted, fontFamily: fonts.body },
                     ]}
                   >
-                    {award.is_open ? 'Ouvert' : 'Résultats'}
+                    {started ? 'Ouvert' : pending ? 'Bientôt' : 'Résultats'}
                   </Text>
                 </View>
               </Pressable>

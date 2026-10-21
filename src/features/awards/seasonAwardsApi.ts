@@ -23,6 +23,12 @@ export const AWARD_CATALOG: {
   { type: 'best_young', title: 'Espoir', blurb: 'Meilleur jeune' },
 ];
 
+/**
+ * Les trophées classiques n'acceptent les votes qu'à partir du vendredi 23 octobre 2026,
+ * 9h (Paris). La migration 011 applique la même date à ceux déjà créés.
+ */
+export const CLASSIC_AWARDS_OPEN_AT = '2026-10-23T07:00:00Z';
+
 export type SeasonAward = {
   id: string;
   season_id: string;
@@ -33,6 +39,8 @@ export type SeasonAward = {
   is_open: boolean;
   /** Postes qui peuvent recevoir des voix (codes de positions.ts) ; vide = tous (migration 010). */
   positions?: string[] | null;
+  /** Avant cette heure, le trophée est visible mais on ne peut pas voter (migration 011). */
+  opens_at?: string | null;
   created_at: string;
 };
 
@@ -68,6 +76,7 @@ export async function openSeasonAwards(seasonId: string, playerIds: string[]) {
         title: cat.title,
         is_open: true,
         ...positionsField(cat.positions),
+        ...classicOpening(),
       })
       .select()
       .single();
@@ -196,6 +205,23 @@ export async function voteForPlayer(awardId: string, playerId: string): Promise<
  */
 function positionsField(positions?: readonly string[]) {
   return positions && positions.length > 0 ? { positions: [...positions] } : {};
+}
+
+function classicOpening() {
+  return Date.parse(CLASSIC_AWARDS_OPEN_AT) > Date.now() ? { opens_at: CLASSIC_AWARDS_OPEN_AT } : {};
+}
+
+/** Le vote a-t-il commencé ? (ouvert et heure d'ouverture passée) */
+export function votingStarted(award: Pick<SeasonAward, 'is_open' | 'opens_at'>, now = Date.now()) {
+  return award.is_open && (!award.opens_at || Date.parse(award.opens_at) <= now);
+}
+
+/** « vendredi 23 octobre à 09:00 » */
+export function formatOpening(iso: string): string {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return `${day} à ${time}`;
 }
 
 /** Admin : crée un trophée au nom libre (migration 008), réservé ou non à des postes. */

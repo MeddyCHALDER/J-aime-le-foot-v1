@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from './seasonAwardsApi';
 import { announceVotesOpen } from '../notifications/api';
@@ -170,4 +171,24 @@ export function useUpdateAwardPositions(awardId: string, seasonId: string | unde
       if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
     },
   });
+}
+
+/**
+ * Heure courante, rafraîchie à la prochaine ouverture de vote : un écran resté
+ * affiché bascule tout seul sur « Vote ouvert » à l'heure dite.
+ */
+export function useNowUntil(opensAt: (string | null | undefined)[]) {
+  const [now, setNow] = useState(() => Date.now());
+  const next = opensAt
+    .map((iso) => (iso ? Date.parse(iso) : NaN))
+    .filter((t) => t > now)
+    .sort((a, b) => a - b)[0];
+  useEffect(() => {
+    if (!next) return;
+    // setTimeout plafonne à ~24 jours : au-delà, un rechargement suffira.
+    const delay = Math.min(next - Date.now() + 500, 2_000_000_000);
+    const id = setTimeout(() => setNow(Date.now()), delay);
+    return () => clearTimeout(id);
+  }, [next]);
+  return now;
 }
