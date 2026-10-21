@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import type { PositionCode } from '../cards/positions';
 
 export type AwardType =
   | 'ballon_dor'
@@ -8,12 +9,17 @@ export type AwardType =
   | 'best_young'
   | 'for_the_best';
 
-export const AWARD_CATALOG: { type: AwardType; title: string; blurb: string }[] = [
+export const AWARD_CATALOG: {
+  type: AwardType;
+  title: string;
+  blurb: string;
+  positions?: PositionCode[];
+}[] = [
   { type: 'ballon_dor', title: "Ballon d'Or", blurb: 'Meilleur joueur de la saison' },
   { type: 'for_the_best', title: 'For the Best', blurb: 'Le plus décisif selon le club' },
   { type: 'pichichi', title: 'Pichichi', blurb: 'Meilleur buteur' },
   { type: 'puskas', title: 'Puskás', blurb: 'Plus beau but / action' },
-  { type: 'golden_glove', title: 'Golden Glove', blurb: 'Meilleur gardien' },
+  { type: 'golden_glove', title: 'Golden Glove', blurb: 'Meilleur gardien', positions: ['GK'] },
   { type: 'best_young', title: 'Espoir', blurb: 'Meilleur jeune' },
 ];
 
@@ -25,6 +31,8 @@ export type SeasonAward = {
   title: string;
   description?: string | null;
   is_open: boolean;
+  /** Postes qui peuvent recevoir des voix (codes de positions.ts) ; vide = tous (migration 010). */
+  positions?: string[] | null;
   created_at: string;
 };
 
@@ -54,7 +62,13 @@ export async function openSeasonAwards(seasonId: string, playerIds: string[]) {
     if (existing.some((a) => a.type === cat.type)) continue;
     const { data: award, error } = await supabase
       .from('season_awards')
-      .insert({ season_id: seasonId, type: cat.type, title: cat.title, is_open: true })
+      .insert({
+        season_id: seasonId,
+        type: cat.type,
+        title: cat.title,
+        is_open: true,
+        ...positionsField(cat.positions),
+      })
       .select()
       .single();
     if (error) throw error;
@@ -176,11 +190,20 @@ export async function voteForPlayer(awardId: string, playerId: string): Promise<
   if (error) throw error;
 }
 
-/** Admin : crée un trophée au nom libre (migration 008). */
+/**
+ * N'écrit la colonne que si des postes sont choisis : un trophée ouvert à tous
+ * reste créable tant que la migration 010 n'a pas été exécutée.
+ */
+function positionsField(positions?: readonly string[]) {
+  return positions && positions.length > 0 ? { positions: [...positions] } : {};
+}
+
+/** Admin : crée un trophée au nom libre (migration 008), réservé ou non à des postes. */
 export async function createAward(
   seasonId: string,
   title: string,
-  description?: string
+  description?: string,
+  positions: string[] = []
 ): Promise<SeasonAward> {
   const { data, error } = await supabase
     .from('season_awards')
@@ -190,11 +213,25 @@ export async function createAward(
       title: title.trim(),
       description: description?.trim() || null,
       is_open: true,
+      ...positionsField(positions),
     })
     .select()
     .single();
   if (error) throw error;
   return data as SeasonAward;
+}
+
+/**
+ * Admin : change les postes d'un trophée (vide = ouvert à tous). Les voix pour un
+ * joueur devenu hors poste sont retirées par la base (migration 010).
+ */
+export async function updateAwardPositions(awardId: string, positions: string[]): Promise<void> {
+  const { error, count } = await supabase
+    .from('season_awards')
+    .update({ positions: positions.length > 0 ? positions : null }, { count: 'exact' })
+    .eq('id', awardId);
+  if (error) throw error;
+  if (count === 0) throw new Error('Modification refusée : seul l’admin de la ligue peut changer les postes.');
 }
 
 /** Admin : supprime un trophée et ses votes (cascade côté base). */

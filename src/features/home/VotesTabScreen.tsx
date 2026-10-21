@@ -21,6 +21,8 @@ import {
   useOpenSeasonAwards,
   useSeasonAwards,
 } from '../awards/seasonAwardsHooks';
+import { PositionPicker } from '../awards/components/PositionPicker';
+import { positionsLabel } from '../cards/positions';
 import { EmptyState, LoadingState, ErrorState } from '../../ui';
 import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
@@ -45,6 +47,7 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
   const createAward = useCreateAward(season?.id);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [newPositions, setNewPositions] = useState<string[]>([]);
   const [formOpen, setFormOpen] = useState(false);
 
   const isAdmin = !!user?.id && !!league && user.id === league.created_by;
@@ -71,8 +74,8 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
       </Text>
       <Text style={[styles.title, { color: tokens.text, fontFamily: fonts.display }]}>Votes</Text>
       <Text style={[styles.sub, { color: tokens.muted, fontFamily: fonts.body }]}>
-        Un vote par trophée, parmi tous les joueurs de la ligue. Tu peux changer d’avis tant que le
-        vote est ouvert.
+        Un vote par trophée, parmi les joueurs de la ligue (certains trophées sont réservés à des
+        postes). Tu peux changer d’avis tant que le vote est ouvert.
       </Text>
     </View>
   );
@@ -126,6 +129,7 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
           {list.map((award) => {
             const blurb = awardBlurb(award);
             const choice = myVotes.data?.[award.id];
+            const reserved = positionsLabel(award.positions);
             return (
               <Pressable
                 key={award.id}
@@ -141,6 +145,11 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                   {blurb ? (
                     <Text style={[styles.cardSub, { color: tokens.muted, fontFamily: fonts.body }]}>
                       {blurb}
+                    </Text>
+                  ) : null}
+                  {reserved ? (
+                    <Text style={[styles.cardReserved, { color: tokens.muted2, fontFamily: fonts.body }]}>
+                      {reserved} uniquement
                     </Text>
                   ) : null}
                   <Text
@@ -192,17 +201,31 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                 accessibilityLabel="Description du trophée"
                 style={[styles.input, inputColors]}
               />
+              <Text style={[styles.fieldLabel, { color: tokens.muted, fontFamily: fonts.body }]}>
+                Postes éligibles · aucun coché = tous les joueurs
+              </Text>
+              <PositionPicker
+                value={newPositions}
+                onChange={setNewPositions}
+                disabled={createAward.isPending}
+              />
               <Pressable
                 onPress={async () => {
                   if (!newTitle.trim()) return;
-                  await createAward.mutateAsync({ title: newTitle, description: newDesc });
+                  await createAward.mutateAsync({
+                    title: newTitle,
+                    description: newDesc,
+                    positions: newPositions,
+                  });
                   setNewTitle('');
                   setNewDesc('');
+                  setNewPositions([]);
                   setFormOpen(false);
                 }}
                 disabled={!newTitle.trim() || createAward.isPending}
                 style={[
                   styles.primary,
+                  styles.primarySpaced,
                   { backgroundColor: tokens.lime },
                   (!newTitle.trim() || createAward.isPending) && { opacity: 0.5 },
                 ]}
@@ -267,6 +290,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 20, fontStyle: 'italic', fontWeight: '700' },
   cardSub: { fontSize: 13, marginTop: 2 },
+  cardReserved: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginTop: 6,
+  },
   cardChoice: { fontSize: 14, fontWeight: '700', marginTop: 8 },
   badge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   badgeText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
@@ -277,6 +307,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 8,
   },
+  primarySpaced: { marginTop: 16 },
+  fieldLabel: { fontSize: 13, marginBottom: 8 },
   primaryText: { fontSize: 15, fontWeight: '700' },
   error: { marginTop: 10, fontSize: 13 },
   adminBox: { borderWidth: 1, borderRadius: 16, padding: 16, marginTop: 8 },

@@ -20,8 +20,11 @@ import {
   useCloseAward,
   useDeleteAward,
   useMyVotes,
+  useUpdateAwardPositions,
   useVoteForPlayer,
 } from '../seasonAwardsHooks';
+import { isEligible, positionsLabel } from '../../cards/positions';
+import { PositionPicker } from './PositionPicker';
 import { ErrorState, LoadingState } from '../../../ui';
 import { toErrorMessage } from '../../../lib/errors';
 import { confirmAction } from '../../../lib/confirm';
@@ -41,7 +44,7 @@ const normalize = (s: string) =>
     .toLowerCase()
     .trim();
 
-/** Page d'un trophée : tous les joueurs de la ligue, recherche, vote en un geste. */
+/** Page d'un trophée : les joueurs de la ligue (du poste visé), recherche, vote en un geste. */
 export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScreenProps) {
   const { tokens, scheme } = useAppTheme();
   const { user } = useAuth();
@@ -54,7 +57,10 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
   const tally = useAwardTally(awardId, !isOpen);
   const close = useCloseAward(award.data?.season_id);
   const remove = useDeleteAward(award.data?.season_id);
+  const savePositions = useUpdateAwardPositions(awardId, award.data?.season_id);
   const [query, setQuery] = useState('');
+  // Postes en cours de modification par l'admin ; null = ceux du trophée.
+  const [draftPositions, setDraftPositions] = useState<string[] | null>(null);
   // Le toucher qui ouvre la page peut retomber sur la ligne affichée au même endroit
   // et voter sans le vouloir : on ignore les touchers juste après l'ouverture.
   const openedAt = useRef(Date.now());
@@ -66,14 +72,20 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
   const isAdmin = !!roster.data?.find((p) => p.player_id === user?.id && p.role === 'admin');
   const myChoice = myVotes.data?.[awardId];
 
+  const positions = award.data?.positions ?? null;
+  const eligible = useMemo(
+    () => (roster.data ?? []).filter((p) => isEligible(positions, p.preferred_position)),
+    [roster.data, positions]
+  );
+
   const players = useMemo(() => {
     const q = normalize(query);
-    const list = (roster.data ?? []).filter((p) => !q || normalize(p.display_name).includes(q));
+    const list = eligible.filter((p) => !q || normalize(p.display_name).includes(q));
     if (!isOpen && tally.data) {
       return [...list].sort((a, b) => (tally.data[b.player_id] ?? 0) - (tally.data[a.player_id] ?? 0));
     }
     return list;
-  }, [roster.data, query, isOpen, tally.data]);
+  }, [eligible, query, isOpen, tally.data]);
 
   if (award.isLoading || roster.isLoading) return <LoadingState message="Chargement du vote…" />;
   if (award.error || roster.error) {
@@ -90,6 +102,14 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
   if (!award.data) return <ErrorState message="Trophée introuvable." />;
 
   const blurb = awardBlurb(award.data);
+  const reserved = positionsLabel(positions);
+  const currentPositions = positions ?? [];
+  const editedPositions = draftPositions ?? currentPositions;
+  const positionsChanged =
+    editedPositions.length !== currentPositions.length ||
+    editedPositions.some((c) => !currentPositions.includes(c));
+  const applyPositions = () =>
+    savePositions.mutate(editedPositions, { onSuccess: () => setDraftPositions(null) });
   const choiceName = roster.data?.find((p) => p.player_id === myChoice)?.display_name;
 
   const renderPlayer = ({ item, index }: { item: RosterPlayer; index: number }) => {
@@ -159,6 +179,12 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
           {blurb ? (
             <Text style={[styles.sub, { color: tokens.muted, fontFamily: fonts.body }]}>{blurb}</Text>
           ) : null}
+          {reserved ? (
+            <Text style={[styles.reserved, { color: tokens.muted, fontFamily: fonts.body }]}>
+              Réservé aux {reserved.toLowerCase()}. Un joueur apparaît ici selon le poste de son
+              profil.
+            </Text>
+          ) : null}
 
           <View style={[styles.choice, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>
             <Text style={[styles.choiceText, { color: choiceName ? tokens.lime : tokens.muted, fontFamily: fonts.body }]}>
@@ -197,7 +223,7 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
           />
           <Text style={[styles.count, { color: tokens.muted2, fontFamily: fonts.body }]}>
             {players.length} joueur{players.length > 1 ? 's' : ''}
-            {query ? ` pour « ${query} »` : ' dans la ligue'}
+            {query ? ` pour « ${query} »` : reserved ? ' éligible' + (players.length > 1 ? 's' : '') : ' dans la ligue'}
           </Text>
 
           {vote.error ? (
@@ -209,12 +235,57 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
       }
       ListEmptyComponent={
         <Text style={[styles.empty, { color: tokens.muted, fontFamily: fonts.body }]}>
-          {query ? 'Aucun joueur ne correspond.' : 'Aucun joueur dans la ligue pour l’instant.'}
+          {query
+            ? 'Aucun joueur ne correspond.'
+            : reserved
+              ? 'Aucun joueur de ce poste dans la ligue. Chacun renseigne son poste dans son profil.'
+              : 'Aucun joueur dans la ligue pour l’instant.'}
         </Text>
       }
       ListFooterComponent={
         isAdmin ? (
           <View style={styles.adminActions}>
+            {isOpen ? (
+              <View style={[styles.positionsBox, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>
+                <Text style={[styles.positionsTitle, { color: tokens.lime, fontFamily: fonts.body }]}>
+                  Postes éligibles
+                </Text>
+                <Text style={[styles.positionsHint, { color: tokens.muted, fontFamily: fonts.body }]}>
+                  Aucun coché : tous les joueurs de la ligue.
+                </Text>
+                <PositionPicker
+                  value={editedPositions}
+                  onChange={setDraftPositions}
+                  disabled={savePositions.isPending}
+                />
+                {positionsChanged ? (
+                  <Pressable
+                    onPress={() =>
+                      editedPositions.length > 0
+                        ? confirmAction(
+                            'Changer les postes ?',
+                            'Les voix déjà données à un joueur hors de ces postes seront retirées.',
+                            applyPositions,
+                            'Changer'
+                          )
+                        : applyPositions()
+                    }
+                    disabled={savePositions.isPending}
+                    style={[styles.savePositions, { backgroundColor: tokens.lime }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.closeText, { color: tokens.onLime, fontFamily: fonts.body }]}>
+                      {savePositions.isPending ? 'Enregistrement…' : 'Enregistrer les postes'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {savePositions.error ? (
+                  <Text style={[styles.error, styles.positionsError, { color: tokens.errorText, fontFamily: fonts.body }]}>
+                    {toErrorMessage(savePositions.error)}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
             {isOpen ? (
               <Pressable
                 onPress={() => close.mutate(awardId)}
@@ -262,6 +333,7 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 11, fontWeight: '600', letterSpacing: 1.8, textTransform: 'uppercase' },
   title: { fontSize: 32, fontStyle: 'italic', fontWeight: '700', lineHeight: 36, marginTop: 6 },
   sub: { fontSize: 15, marginTop: 4 },
+  reserved: { fontSize: 13, lineHeight: 19, marginTop: 8 },
   choice: { borderWidth: 1, borderRadius: 14, padding: 14, marginTop: 16 },
   choiceText: { fontSize: 15, fontWeight: '700' },
   choiceHint: { fontSize: 12, marginTop: 4 },
@@ -309,4 +381,20 @@ const styles = StyleSheet.create({
   },
   closeText: { fontSize: 14, fontWeight: '700' },
   adminActions: { marginTop: 8 },
+  positionsBox: { borderWidth: 1, borderRadius: 16, padding: 16, marginTop: 16 },
+  positionsTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+  },
+  positionsHint: { fontSize: 13, marginTop: 4, marginBottom: 12 },
+  savePositions: {
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+  },
+  positionsError: { marginTop: 10, marginBottom: 0 },
 });

@@ -43,9 +43,11 @@ export interface RosterPlayer {
   display_name: string;
   avatar_url: string | null;
   role: 'admin' | 'player';
+  /** Poste du profil, texte libre ; absent tant que la migration 010 n'est pas exécutée. */
+  preferred_position?: string | null;
 }
 
-/** Tous les joueurs d'une ligue, noms compris (fonction league_roster, migration 006). */
+/** Tous les joueurs d'une ligue, noms et postes compris (league_roster, migrations 006 et 010). */
 export async function fetchLeagueRoster(leagueId: string): Promise<RosterPlayer[]> {
   const { data, error } = await supabase.rpc('league_roster', { p_league_id: leagueId });
   if (error) throw error;

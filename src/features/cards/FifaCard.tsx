@@ -8,23 +8,11 @@ import {
   type ViewStyle,
 } from 'react-native';
 import type { PlayerCardStats } from './card-rules';
+import { positionShort } from './positions';
 
 const GOLD =
   'linear-gradient(150deg,#E8C46A 0%,#F6E7B6 30%,#D9B45A 52%,#C99B3B 78%,#F2DFA8 100%)';
 const INK = '#2a2410';
-
-export function positionShort(position?: string | null): string {
-  if (!position) return '—';
-  const p = position.toLowerCase();
-  if (p.includes('gard')) return 'GK';
-  if (p.includes('déf') || p.includes('def') || p === 'dc') return 'CB';
-  if (p.includes('lat')) return 'FB';
-  if (p.includes('moc') || p.includes('meneur')) return 'CAM';
-  if (p.includes('ail')) return 'W';
-  if (p.includes('att') || p.includes('bu')) return 'ST';
-  if (p.includes('mil') || p.includes('mc')) return 'CM';
-  return position.slice(0, 3).toUpperCase();
-}
 
 function footLabel(foot?: string | null): string {
   if (!foot) return '';

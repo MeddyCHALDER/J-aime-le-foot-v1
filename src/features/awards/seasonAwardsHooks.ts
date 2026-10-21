@@ -129,8 +129,15 @@ export function useCloseAward(seasonId: string | undefined) {
 export function useCreateAward(seasonId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ title, description }: { title: string; description?: string }) =>
-      api.createAward(seasonId!, title, description),
+    mutationFn: ({
+      title,
+      description,
+      positions,
+    }: {
+      title: string;
+      description?: string;
+      positions?: string[];
+    }) => api.createAward(seasonId!, title, description, positions),
     onSuccess: (award) => {
       if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
       void announceVotesOpen([award.id]);
@@ -145,6 +152,21 @@ export function useDeleteAward(seasonId: string | undefined) {
     onSuccess: (_, awardId) => {
       qc.removeQueries({ queryKey: voteKeys.award(awardId) });
       qc.invalidateQueries({ queryKey: voteKeys.minePrefix });
+      if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
+    },
+  });
+}
+
+/** Admin : postes autorisés à recevoir des voix pour un trophée. */
+export function useUpdateAwardPositions(awardId: string, seasonId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (positions: string[]) => api.updateAwardPositions(awardId, positions),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: voteKeys.award(awardId) });
+      // Des voix ont pu être retirées : choix et décompte sont à relire.
+      qc.invalidateQueries({ queryKey: voteKeys.minePrefix });
+      qc.invalidateQueries({ queryKey: voteKeys.tally(awardId) });
       if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
     },
   });
