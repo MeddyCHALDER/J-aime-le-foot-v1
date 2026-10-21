@@ -53,3 +53,31 @@ export function lineOf(position: string | null | undefined): PitchLine | null {
 export function baseKeyOf(position: string | null | undefined): string | null {
   return find(position)?.base ?? null;
 }
+
+export const PITCH_LINES: PitchLine[] = ['GB', 'DEF', 'MIL', 'ATT'];
+
+/** Joueurs d'une ligne, au pluriel : « Réservé aux gardiens », « Défenseurs uniquement ». */
+const LINE_PLAYERS: Record<PitchLine, string> = {
+  GB: 'Gardiens',
+  DEF: 'Défenseurs',
+  MIL: 'Milieux',
+  ATT: 'Attaquants',
+};
+
+/**
+ * Un trophée réservé à des lignes n'accepte que les joueurs de ces lignes ; sans ligne,
+ * il est ouvert à tous. Même règle que award_accepts_player() (migration 016).
+ */
+export function isEligibleFor(lines: readonly string[] | null | undefined, position?: string | null) {
+  if (!lines || lines.length === 0) return true;
+  const line = lineOf(position);
+  return !!line && lines.includes(line);
+}
+
+/** « Gardiens », « Défenseurs et Milieux », « Défenseurs, Milieux et Attaquants ». */
+export function linesLabel(lines: readonly string[] | null | undefined): string | null {
+  if (!lines || lines.length === 0) return null;
+  const names = PITCH_LINES.filter((l) => lines.includes(l)).map((l) => LINE_PLAYERS[l]);
+  if (names.length <= 1) return names[0] ?? null;
+  return `${names.slice(0, -1).join(', ')} et ${names[names.length - 1]}`;
+}

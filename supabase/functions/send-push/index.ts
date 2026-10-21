@@ -4,8 +4,8 @@
  *   { kind: 'match_open', matchId }        → inscriptions ouvertes pour un match
  *   { kind: 'vote_open', awardIds: [...] } → votes ouverts pour un ou plusieurs trophées
  *   { kind: 'test' }                       → notification de test sur ses propres appareils
- *   { kind: 'due' }                        → inscriptions arrivées à leur heure d'ouverture
- *                                            (appelé chaque minute par pg_cron, migration 011)
+ *   { kind: 'due' }                        → inscriptions et votes arrivés à leur heure d'ouverture
+ *                                            (appelé chaque minute par pg_cron, migrations 011 et 016)
  * Les annonces sont réservées à l'admin de la ligue et ne partent qu'une fois (table push_sent).
  * « due » n'a pas besoin d'utilisateur : il n'envoie que des annonces dont l'heure est passée
  * et jamais envoyées, donc l'appeler en avance ou deux fois ne change rien.
@@ -127,35 +127,18 @@ Deno.serve(async (req) => {
 
       const seasonIds = new Set(open.map((a) => a.season_id));
       if (seasonIds.size > 1) return json({ error: 'Trophées de plusieurs saisons' }, 400);
-      const seasonId = open[0].season_id;
 
-      const { data: isAdmin } = await asUser.rpc('is_season_admin', { p_season_id: seasonId });
+      const { data: isAdmin } = await asUser.rpc('is_season_admin', { p_season_id: open[0].season_id });
       if (!isAdmin) return json({ error: 'Seul l’admin de la ligue peut ouvrir les votes' }, 403);
 
-      const leagueId = await leagueOfSeason(admin, seasonId);
-      if (!leagueId) return json({ error: 'Ligue introuvable' }, 404);
+      // Ouverture programmée plus tard : c'est la tâche planifiée qui annoncera.
+      const now = new Date();
+      const ready = open.filter((a) => !a.opens_at || new Date(a.opens_at) <= now);
+      if (ready.length === 0) return json({ ok: true, sent: 0, scheduled: true });
 
-      announce = {
-        leagueId,
-        refs: open.map((a) => a.id),
-        // Seuls les trophées pas encore annoncés figurent dans le message.
-        payload: (leagueName, fresh) => {
-          const sent = open.filter((a) => fresh.has(a.id));
-          const single = sent.length === 1 ? sent[0] : null;
-          return {
-            title: `Votes ouverts · ${leagueName}`,
-            body: single
-              ? single.kind === 'lineup'
-                ? `« ${single.title} » : compose ton équipe type.`
-                : `« ${single.title} » : choisis ton joueur.`
-              : `${sent.length} trophées à voter : ${sent.map((a) => a.title).join(', ')}.`,
-            url: single
-              ? `/?open=award&id=${single.id}&league=${leagueId}`
-              : `/?open=votes`,
-            tag: `votes-${seasonId}`,
-          };
-        },
-      };
+      const built = await votesAnnounce(admin, ready);
+      if (!built) return json({ error: 'Ligue introuvable' }, 404);
+      announce = built;
     } else {
       return json({ error: 'kind inconnu' }, 400);
     }
@@ -188,7 +171,36 @@ async function matchAnnounce(
   };
 }
 
-/** Matchs dont l'heure d'ouverture est passée (dernières 24 h) et pas encore annoncés. */
+/** Annonce « votes ouverts » pour des trophées d'une même saison. */
+async function votesAnnounce(
+  admin: SupabaseClient,
+  awards: Record<string, unknown>[]
+): Promise<Announce | null> {
+  const seasonId = String(awards[0].season_id);
+  const leagueId = await leagueOfSeason(admin, seasonId);
+  if (!leagueId) return null;
+  return {
+    leagueId,
+    refs: awards.map((a) => String(a.id)),
+    // Seuls les trophées pas encore annoncés figurent dans le message.
+    payload: (leagueName, fresh) => {
+      const sent = awards.filter((a) => fresh.has(String(a.id)));
+      const single = sent.length === 1 ? sent[0] : null;
+      return {
+        title: `Votes ouverts · ${leagueName}`,
+        body: single
+          ? single.kind === 'lineup'
+            ? `« ${single.title} » : compose ton équipe type.`
+            : `« ${single.title} » : choisis ton joueur.`
+          : `${sent.length} trophées à voter : ${sent.map((a) => a.title).join(', ')}.`,
+        url: single ? `/?open=award&id=${single.id}&league=${leagueId}` : `/?open=votes`,
+        tag: `votes-${seasonId}`,
+      };
+    },
+  };
+}
+
+/** Matchs et trophées dont l'heure d'ouverture est passée (dernières 24 h), pas encore annoncés. */
 async function announceDueOpenings(admin: SupabaseClient, vapid: Vapid) {
   const now = new Date();
   const since = new Date(now.getTime() - 24 * 3600 * 1000);
@@ -207,7 +219,30 @@ async function announceDueOpenings(admin: SupabaseClient, vapid: Vapid) {
     const res = await deliver(admin, vapid, 'match_open', built, null);
     sent += res.sent;
   }
-  return { ok: true, matches: due?.length ?? 0, sent };
+
+  // Trophées : une notification par saison, même si plusieurs ouvrent à la même heure.
+  const { data: dueAwards, error: awardsError } = await admin
+    .from('season_awards')
+    .select('*')
+    .eq('is_open', true)
+    .lte('opens_at', now.toISOString())
+    .gt('opens_at', since.toISOString())
+    .order('created_at');
+  // Colonne absente tant que la migration 016 n'est pas passée : on ignore.
+  if (awardsError && !/opens_at/.test(awardsError.message)) throw awardsError;
+  const bySeason = new Map<string, Record<string, unknown>[]>();
+  for (const a of dueAwards ?? []) {
+    const key = String(a.season_id);
+    bySeason.set(key, [...(bySeason.get(key) ?? []), a]);
+  }
+  for (const awards of bySeason.values()) {
+    const built = await votesAnnounce(admin, awards);
+    if (!built) continue;
+    const res = await deliver(admin, vapid, 'vote_open', built, null);
+    sent += res.sent;
+  }
+
+  return { ok: true, matches: due?.length ?? 0, awards: dueAwards?.length ?? 0, sent };
 }
 
 /**

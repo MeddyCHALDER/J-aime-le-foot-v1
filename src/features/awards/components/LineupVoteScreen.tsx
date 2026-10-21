@@ -21,6 +21,7 @@ import { MiniPlayerCard } from '../../cards/MiniPlayerCard';
 import type { LineupSlots, SeasonAward } from '../seasonAwardsApi';
 import {
   useCastLineupVote,
+  useWithdrawVote,
   useCloseAward,
   useDeleteAward,
   useLineupResults,
@@ -55,6 +56,7 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
   const roster = useLeagueRoster(leagueId);
   const mine = useMyLineups([award.id], user?.id);
   const cast = useCastLineupVote(award.id);
+  const withdraw = useWithdrawVote(award.id);
   const setFormat = useSetLineupFormat(award.id, award.season_id);
   const close = useCloseAward(award.season_id);
   const remove = useDeleteAward(award.season_id);
@@ -253,8 +255,29 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
               Ton équipe est enregistrée. Tu peux la modifier jusqu’à la clôture.
             </Text>
           ) : null}
-          {cast.error ? (
-            <Text style={[styles.note, body, { color: tokens.errorText }]}>{toErrorMessage(cast.error)}</Text>
+          {savedSlots ? (
+            <Pressable
+              onPress={() =>
+                confirmAction(
+                  'Retirer ton équipe ?',
+                  'Ton équipe type sera supprimée. Tu pourras en revoter une tant que le vote est ouvert.',
+                  () => withdraw.mutate(undefined, { onSuccess: () => setSaved(false) }),
+                  'Retirer'
+                )
+              }
+              disabled={withdraw.isPending}
+              style={[styles.secondary, { borderColor: tokens.line }]}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.secondaryText, body, { color: tokens.errorText }]}>
+                {withdraw.isPending ? 'Retrait…' : 'Retirer mon vote'}
+              </Text>
+            </Pressable>
+          ) : null}
+          {cast.error || withdraw.error ? (
+            <Text style={[styles.note, body, { color: tokens.errorText }]}>
+              {toErrorMessage(cast.error ?? withdraw.error)}
+            </Text>
           ) : null}
         </>
       ) : results.error ? (

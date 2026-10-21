@@ -1,4 +1,5 @@
 import { supabase } from '../../lib/supabase';
+import type { PitchLine } from '../cards/positions';
 
 export type AwardType =
   | 'ballon_dor'
@@ -8,14 +9,25 @@ export type AwardType =
   | 'best_young'
   | 'for_the_best';
 
-export const AWARD_CATALOG: { type: AwardType; title: string; blurb: string }[] = [
+export const AWARD_CATALOG: {
+  type: AwardType;
+  title: string;
+  blurb: string;
+  positions?: PitchLine[];
+}[] = [
   { type: 'ballon_dor', title: "Ballon d'Or", blurb: 'Meilleur joueur de la saison' },
   { type: 'for_the_best', title: 'For the Best', blurb: 'Le plus décisif selon le club' },
   { type: 'pichichi', title: 'Pichichi', blurb: 'Meilleur buteur' },
   { type: 'puskas', title: 'Puskás', blurb: 'Plus beau but / action' },
-  { type: 'golden_glove', title: 'Golden Glove', blurb: 'Meilleur gardien' },
+  { type: 'golden_glove', title: 'Golden Glove', blurb: 'Meilleur gardien', positions: ['GB'] },
   { type: 'best_young', title: 'Espoir', blurb: 'Meilleur jeune' },
 ];
+
+/**
+ * Les trophées classiques n'acceptent les votes qu'à partir du vendredi 23 octobre 2026,
+ * 9h (Paris). La migration 016 applique la même date à ceux déjà créés.
+ */
+export const CLASSIC_AWARDS_OPEN_AT = '2026-10-23T07:00:00Z';
 
 export type SeasonAward = {
   id: string;
@@ -29,6 +41,10 @@ export type SeasonAward = {
   lineup_size?: number | null;
   formation?: string | null;
   is_open: boolean;
+  /** Lignes (GB, DEF, MIL, ATT) qui peuvent recevoir des voix ; vide = tous (migration 016) */
+  positions?: string[] | null;
+  /** Avant cette heure, le trophée est visible mais fermé au vote (migration 016) */
+  opens_at?: string | null;
   created_at: string;
 };
 
@@ -58,7 +74,14 @@ export async function openSeasonAwards(seasonId: string, playerIds: string[]) {
     if (existing.some((a) => a.type === cat.type)) continue;
     const { data: award, error } = await supabase
       .from('season_awards')
-      .insert({ season_id: seasonId, type: cat.type, title: cat.title, is_open: true })
+      .insert({
+        season_id: seasonId,
+        type: cat.type,
+        title: cat.title,
+        is_open: true,
+        ...positionsField(cat.positions),
+        ...classicOpening(),
+      })
       .select()
       .single();
     if (error) throw error;
@@ -180,13 +203,39 @@ export async function voteForPlayer(awardId: string, playerId: string): Promise<
   if (error) throw error;
 }
 
-/** Admin : crée un trophée au nom libre (migration 008). */
+/**
+ * Colonnes de la migration 016, envoyées seulement quand elles servent : sans elles, un
+ * trophée reste créable tant que la migration n'a pas été exécutée.
+ */
+function positionsField(positions?: readonly string[]) {
+  return positions && positions.length > 0 ? { positions: [...positions] } : {};
+}
+
+function classicOpening() {
+  return Date.parse(CLASSIC_AWARDS_OPEN_AT) > Date.now() ? { opens_at: CLASSIC_AWARDS_OPEN_AT } : {};
+}
+
+/** Le vote a-t-il commencé ? (trophée ouvert et heure d'ouverture passée) */
+export function votingStarted(award: Pick<SeasonAward, 'is_open' | 'opens_at'>, now = Date.now()) {
+  return award.is_open && (!award.opens_at || Date.parse(award.opens_at) <= now);
+}
+
+/** « vendredi 23 octobre à 09:00 » */
+export function formatOpening(iso: string): string {
+  const d = new Date(iso);
+  const day = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const time = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return `${day} à ${time}`;
+}
+
+/** Admin : crée un trophée au nom libre (migration 008), réservé ou non à des lignes. */
 export async function createAward(
   seasonId: string,
   title: string,
   description?: string,
   /** Équipe type : nombre de joueurs et formation */
-  lineup?: { size: number; formation: string }
+  lineup?: { size: number; formation: string },
+  positions: string[] = []
 ): Promise<SeasonAward> {
   const { data, error } = await supabase
     .from('season_awards')
@@ -198,11 +247,32 @@ export async function createAward(
       is_open: true,
       // Colonnes de la migration 013, envoyées seulement pour une équipe type
       ...(lineup ? { kind: 'lineup', lineup_size: lineup.size, formation: lineup.formation } : {}),
+      // Les postes ne concernent que les trophées « un joueur »
+      ...(lineup ? {} : positionsField(positions)),
     })
     .select()
     .single();
   if (error) throw error;
   return data as SeasonAward;
+}
+
+/** Retire son propre vote (un joueur ou équipe type) tant que le vote est ouvert (migration 016). */
+export async function withdrawVote(awardId: string): Promise<void> {
+  const { error } = await supabase.rpc('withdraw_award_vote', { p_award_id: awardId });
+  if (error) throw error;
+}
+
+/**
+ * Admin : change les lignes d'un trophée (vide = ouvert à tous). Les voix pour un joueur
+ * devenu hors poste sont retirées par la base (migration 016).
+ */
+export async function updateAwardPositions(awardId: string, positions: string[]): Promise<void> {
+  const { error, count } = await supabase
+    .from('season_awards')
+    .update({ positions: positions.length > 0 ? positions : null }, { count: 'exact' })
+    .eq('id', awardId);
+  if (error) throw error;
+  if (count === 0) throw new Error('Modification refusée : seul l’admin de la ligue peut changer les postes.');
 }
 
 /** Admin : supprime un trophée et ses votes (cascade côté base). */

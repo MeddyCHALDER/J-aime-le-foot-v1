@@ -15,11 +15,12 @@ import { useAppTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../auth/hooks';
 import { useLeagueRoster } from '../members/hooks';
 import { MiniPlayerCard } from '../cards/MiniPlayerCard';
-import { awardBlurb } from '../awards/seasonAwardsApi';
+import { awardBlurb, formatOpening, votingStarted } from '../awards/seasonAwardsApi';
 import {
   useCreateAward,
   useMyLineups,
   useMyVotes,
+  useNowUntil,
   useOpenSeasonAwards,
   useSeasonAwards,
 } from '../awards/seasonAwardsHooks';
@@ -27,6 +28,8 @@ import { EmptyState, LoadingState, ErrorState, Appear } from '../../ui';
 import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
 import { LINEUP_FORMATS, formatOf } from '../awards/formations';
+import { LinePicker } from '../awards/components/LinePicker';
+import { linesLabel } from '../cards/positions';
 
 interface VotesTabScreenProps {
   onAwardPress: (awardId: string, leagueId: string) => void;
@@ -56,6 +59,8 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
   const [newKind, setNewKind] = useState<'single' | 'lineup'>('single');
   const [newSize, setNewSize] = useState(11);
   const [newFormation, setNewFormation] = useState(formatOf(11).formations[0]);
+  const [newLines, setNewLines] = useState<string[]>([]);
+  const now = useNowUntil((awards.data ?? []).map((a) => a.opens_at));
 
   const isAdmin = !!user?.id && !!league && user.id === league.created_by;
   const playerOf = (playerId: string) => roster.data?.find((p) => p.player_id === playerId);
@@ -81,8 +86,8 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
       </Text>
       <Text style={[styles.title, { color: tokens.text, fontFamily: fonts.display }]}>Votes</Text>
       <Text style={[styles.sub, { color: tokens.muted, fontFamily: fonts.body }]}>
-        Un vote par trophée, parmi tous les joueurs de la ligue. Tu peux changer d’avis tant que le
-        vote est ouvert.
+        Un vote par trophée, parmi les joueurs de la ligue (certains trophées sont réservés à un
+        poste). Tu peux changer d’avis tant que le vote est ouvert.
       </Text>
     </View>
   );
@@ -141,12 +146,27 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
             const choice = isLineup ? undefined : myVotes.data?.[award.id];
             const chosen = choice ? playerOf(choice) : undefined;
             const lineupDone = isLineup && !!myLineups.data?.[award.id];
+            const reserved = isLineup ? null : linesLabel(award.positions);
+            const started = votingStarted(award, now);
+            // Trophée visible, vote pas encore commencé (ouverture programmée)
+            const pending = award.is_open && !started;
+            const status = choice
+              ? `Ton vote : ${nameOf(choice)}`
+              : lineupDone
+                ? 'Ton équipe est votée'
+                : pending && award.opens_at
+                  ? `Votes dès ${formatOpening(award.opens_at)}`
+                  : award.is_open
+                    ? isLineup
+                      ? 'Compose ton équipe'
+                      : 'À voter'
+                    : 'Pas de vote';
             return (
               <Appear key={award.id} index={i}>
               <Pressable
                 onPress={() => onAwardPress(award.id, league.id)}
                 accessibilityRole="button"
-                accessibilityLabel={`${award.title}, ${choice ? `ton vote : ${nameOf(choice)}` : lineupDone ? 'ton équipe est votée' : 'pas encore voté'}`}
+                accessibilityLabel={`${award.title}, ${status}`}
                 style={[styles.card, { backgroundColor: tokens.surface, borderColor: choice || lineupDone ? tokens.lime : tokens.line }]}
               >
                 <View style={{ flex: 1 }}>
@@ -162,21 +182,18 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                       {blurb}
                     </Text>
                   ) : null}
+                  {reserved ? (
+                    <Text style={[styles.cardReserved, { color: tokens.muted2, fontFamily: fonts.body }]}>
+                      {reserved} uniquement
+                    </Text>
+                  ) : null}
                   <Text
                     style={[
                       styles.cardChoice,
                       { color: choice || lineupDone ? tokens.lime : tokens.muted2, fontFamily: fonts.body },
                     ]}
                   >
-                    {choice
-                      ? `Ton vote : ${nameOf(choice)}`
-                      : lineupDone
-                        ? 'Ton équipe est votée'
-                        : award.is_open
-                          ? isLineup
-                            ? 'Compose ton équipe'
-                            : 'À voter'
-                          : 'Pas de vote'}
+                    {status}
                   </Text>
                 </View>
                 {chosen ? (
@@ -188,14 +205,14 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                     position={chosen.preferred_position}
                   />
                 ) : null}
-                <View style={[styles.badge, { borderColor: award.is_open ? tokens.lime : tokens.line }]}>
+                <View style={[styles.badge, { borderColor: started ? tokens.lime : tokens.line }]}>
                   <Text
                     style={[
                       styles.badgeText,
-                      { color: award.is_open ? tokens.lime : tokens.muted, fontFamily: fonts.body },
+                      { color: started ? tokens.lime : tokens.muted, fontFamily: fonts.body },
                     ]}
                   >
-                    {award.is_open ? 'Ouvert' : 'Résultats'}
+                    {started ? 'Ouvert' : pending ? 'Bientôt' : 'Résultats'}
                   </Text>
                 </View>
               </Pressable>
@@ -282,7 +299,14 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                     })}
                   </View>
                 </>
-              ) : null}
+              ) : (
+                <>
+                  <Text style={[styles.pickLabel, { color: tokens.muted, fontFamily: fonts.body }]}>
+                    Réservé à · aucun coché = tous les joueurs
+                  </Text>
+                  <LinePicker value={newLines} onChange={setNewLines} disabled={createAward.isPending} />
+                </>
+              )}
               <TextInput
                 value={newTitle}
                 onChangeText={setNewTitle}
@@ -308,9 +332,11 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                     title: newTitle,
                     description: newDesc,
                     lineup: newKind === 'lineup' ? { size: newSize, formation: newFormation } : undefined,
+                    positions: newKind === 'single' ? newLines : [],
                   });
                   setNewTitle('');
                   setNewDesc('');
+                  setNewLines([]);
                   setFormOpen(false);
                 }}
                 disabled={!newTitle.trim() || createAward.isPending}
@@ -380,6 +406,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 20, fontStyle: 'italic', fontWeight: '700' },
   cardSub: { fontSize: 13, marginTop: 2 },
+  cardReserved: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginTop: 6,
+  },
   cardChoice: { fontSize: 14, fontWeight: '700', marginTop: 8 },
   badge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   badgeText: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
