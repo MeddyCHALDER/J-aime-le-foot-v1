@@ -1,7 +1,9 @@
 -- Ouverture des votes choisie par l'admin, à la création comme après.
 --   1. Ouverture repoussée dans le futur : l'annonce « votes ouverts » déjà envoyée est
 --      oubliée, pour que la tâche planifiée (migration 016) prévienne à la nouvelle heure ;
---   2. cast_lineup_vote (version 015) refuse aussi les équipes type avant l'ouverture.
+--   2. cast_lineup_vote (version 015) refuse aussi les équipes type avant l'ouverture ;
+--   3. league_roster renvoie le statut (et la note) : en prod, la version de la 006 était
+--      restée en place, donc l'admin voyait les demandes en attente comme joueurs actifs.
 -- À exécuter dans Supabase → SQL Editor, après la 017. Idempotent.
 
 -- 1. Nouvelle heure d'ouverture : nouvelle annonce ----------------------------------
@@ -83,3 +85,44 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.cast_lineup_vote(UUID, JSONB) TO authenticated;
+
+-- 3. Liste des joueurs avec leur statut (version de la 015, réappliquée) -------------
+-- Le type de retour change : on supprime puis recrée la fonction.
+DROP FUNCTION IF EXISTS public.league_roster(UUID);
+
+CREATE FUNCTION public.league_roster(p_league_id UUID)
+RETURNS TABLE (
+  player_id UUID,
+  display_name TEXT,
+  avatar_url TEXT,
+  role TEXT,
+  overall INT,
+  preferred_position TEXT,
+  status TEXT
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    m.player_id,
+    COALESCE(NULLIF(trim(p.display_name), ''), split_part(u.email, '@', 1), 'Joueur') AS display_name,
+    p.avatar_url,
+    m.role,
+    c.overall::int AS overall,
+    NULLIF(to_jsonb(p) ->> 'preferred_position', '') AS preferred_position,
+    m.status
+  FROM public.league_members m
+  LEFT JOIN public.profiles p ON p.id = m.player_id
+  LEFT JOIN auth.users u ON u.id = m.player_id
+  LEFT JOIN public.player_cards c ON c.player_id = m.player_id
+  WHERE m.league_id = p_league_id
+    AND public.is_league_member(p_league_id)
+  ORDER BY 2;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.league_roster(UUID) TO authenticated;
+
+-- PostgREST relit les fonctions tout de suite
+NOTIFY pgrst, 'reload schema';
