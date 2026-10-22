@@ -135,12 +135,14 @@ export function useCreateAward(seasonId: string | undefined) {
       description,
       lineup,
       positions,
+      opensAt,
     }: {
       title: string;
       description?: string;
       lineup?: { size: number; formation: string };
       positions?: string[];
-    }) => api.createAward(seasonId!, title, description, lineup, positions),
+      opensAt?: string | null;
+    }) => api.createAward(seasonId!, title, description, lineup, positions, opensAt),
     onSuccess: (award) => {
       if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
       void announceVotesOpen([award.id]);
@@ -214,6 +216,20 @@ export function useUpdateAwardPositions(awardId: string, seasonId: string | unde
       qc.invalidateQueries({ queryKey: voteKeys.minePrefix });
       qc.invalidateQueries({ queryKey: voteKeys.tally(awardId) });
       if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
+    },
+  });
+}
+
+/** Admin : heure d'ouverture du vote (null = tout de suite). */
+export function useUpdateAwardOpening(awardId: string, seasonId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (opensAt: string | null) => api.updateAwardOpening(awardId, opensAt),
+    onSuccess: (_, opensAt) => {
+      qc.invalidateQueries({ queryKey: voteKeys.award(awardId) });
+      if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
+      // Ouvert maintenant : on prévient la ligue (send-push ignore un trophée déjà annoncé)
+      if (!opensAt || Date.parse(opensAt) <= Date.now()) void announceVotesOpen([awardId]);
     },
   });
 }

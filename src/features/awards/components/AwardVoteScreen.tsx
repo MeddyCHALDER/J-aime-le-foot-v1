@@ -28,6 +28,7 @@ import {
 } from '../seasonAwardsHooks';
 import { isEligibleFor, linesLabel } from '../../cards/positions';
 import { LinePicker } from './LinePicker';
+import { AwardOpeningEditor } from './OpeningPicker';
 import { ErrorState, LoadingState, Appear } from '../../../ui';
 import { toErrorMessage } from '../../../lib/errors';
 import { confirmAction } from '../../../lib/confirm';
@@ -287,6 +288,7 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
       ListFooterComponent={
         isAdmin ? (
           <View style={styles.adminActions}>
+            {isOpen ? <AwardOpeningEditor award={award.data} /> : null}
             {isOpen ? (
               <View style={[styles.linesBox, { backgroundColor: tokens.surface, borderColor: tokens.line }]}>
                 <Text style={[styles.linesTitle, { color: tokens.lime, fontFamily: fonts.body }]}>

@@ -18,9 +18,10 @@ import { useAuth } from '../../auth/hooks';
 import { useLeagueRoster } from '../../members/hooks';
 import { isActivePlayer, type RosterPlayer } from '../../members/api';
 import { MiniPlayerCard } from '../../cards/MiniPlayerCard';
-import type { LineupSlots, SeasonAward } from '../seasonAwardsApi';
+import { formatOpening, votingStarted, type LineupSlots, type SeasonAward } from '../seasonAwardsApi';
 import {
   useCastLineupVote,
+  useNowUntil,
   useWithdrawVote,
   useCloseAward,
   useDeleteAward,
@@ -30,6 +31,7 @@ import {
 } from '../seasonAwardsHooks';
 import { LINEUP_FORMATS, formatOf, formationSlots, type PitchSlot } from '../formations';
 import { LoadingState } from '../../../ui';
+import { AwardOpeningEditor } from './OpeningPicker';
 import { lineOf, POSITIONS } from '../../cards/positions';
 import { toErrorMessage } from '../../../lib/errors';
 import { confirmAction } from '../../../lib/confirm';
@@ -61,6 +63,9 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
   const close = useCloseAward(award.season_id);
   const remove = useDeleteAward(award.season_id);
   const isOpen = award.is_open;
+  const now = useNowUntil([award.opens_at]);
+  // Ouverture programmée : on peut composer, pas encore valider
+  const opensAt = isOpen && !votingStarted(award, now) ? award.opens_at : null;
   const results = useLineupResults(award.id, !isOpen);
 
   const formation = award.formation ?? formatOf(award.lineup_size ?? 11).formations[0];
@@ -204,7 +209,7 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
       contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: insets.bottom + 32 }}
     >
       <Text style={[styles.eyebrow, body, { color: tokens.lime }]}>
-        {isOpen ? 'Vote ouvert' : 'Résultats'} · Équipe type
+        {opensAt ? 'Vote bientôt ouvert' : isOpen ? 'Vote ouvert' : 'Résultats'} · Équipe type
       </Text>
       <Text style={[styles.title, { color: tokens.text, fontFamily: fonts.display }]}>{award.title}</Text>
       <Text style={[styles.sub, body, { color: tokens.muted }]}>
@@ -230,16 +235,18 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
         <>
           <Pressable
             onPress={save}
-            disabled={filled < size || cast.isPending || (!dirty && !!savedSlots)}
+            disabled={!!opensAt || filled < size || cast.isPending || (!dirty && !!savedSlots)}
             accessibilityRole="button"
             style={[
               styles.primary,
               { backgroundColor: tokens.lime },
-              (filled < size || cast.isPending || (!dirty && !!savedSlots)) && { opacity: 0.5 },
+              (!!opensAt || filled < size || cast.isPending || (!dirty && !!savedSlots)) && { opacity: 0.5 },
             ]}
           >
             <Text style={[styles.primaryText, body, { color: tokens.onLime }]}>
-              {cast.isPending
+              {opensAt
+                ? `Vote dès ${formatOpening(opensAt)}`
+                : cast.isPending
                 ? 'Enregistrement…'
                 : filled < size
                   ? `Place encore ${size - filled} joueur${size - filled > 1 ? 's' : ''}`
@@ -289,6 +296,7 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
           <Text style={[styles.adminTitle, body, { color: tokens.lime }]}>Admin</Text>
           {isOpen ? (
             <>
+              <AwardOpeningEditor award={award} />
               <Pressable onPress={() => setFormatOpen((v) => !v)} accessibilityRole="button" style={styles.adminRow}>
                 <Text style={[styles.adminText, body, { color: tokens.text }]}>Format : {size} type · {formation}</Text>
                 <Text style={[styles.adminLink, body, { color: tokens.lime }]}>{formatOpen ? 'Fermer' : 'Modifier'}</Text>

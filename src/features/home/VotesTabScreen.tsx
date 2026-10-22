@@ -29,6 +29,7 @@ import { toErrorMessage } from '../../lib/errors';
 import { useHomeContext } from './useHomeContext';
 import { LINEUP_FORMATS, formatOf } from '../awards/formations';
 import { LinePicker } from '../awards/components/LinePicker';
+import { OpeningField, openingToIso } from '../awards/components/OpeningPicker';
 import { linesLabel } from '../cards/positions';
 
 interface VotesTabScreenProps {
@@ -60,6 +61,9 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
   const [newSize, setNewSize] = useState(11);
   const [newFormation, setNewFormation] = useState(formatOf(11).formations[0]);
   const [newLines, setNewLines] = useState<string[]>([]);
+  const [newScheduled, setNewScheduled] = useState(false);
+  const [newOpening, setNewOpening] = useState('');
+  const [openingError, setOpeningError] = useState<string | null>(null);
   const now = useNowUntil((awards.data ?? []).map((a) => a.opens_at));
 
   const isAdmin = !!user?.id && !!league && user.id === league.created_by;
@@ -325,18 +329,30 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                 accessibilityLabel="Description du trophée"
                 style={[styles.input, inputColors]}
               />
+              <OpeningField
+                scheduled={newScheduled}
+                onScheduledChange={setNewScheduled}
+                value={newOpening}
+                onChange={setNewOpening}
+              />
               <Pressable
                 onPress={async () => {
                   if (!newTitle.trim()) return;
+                  const opening = openingToIso(newScheduled, newOpening);
+                  setOpeningError(opening.error ?? null);
+                  if (opening.error) return;
                   await createAward.mutateAsync({
                     title: newTitle,
                     description: newDesc,
                     lineup: newKind === 'lineup' ? { size: newSize, formation: newFormation } : undefined,
                     positions: newKind === 'single' ? newLines : [],
+                    opensAt: opening.iso,
                   });
                   setNewTitle('');
                   setNewDesc('');
                   setNewLines([]);
+                  setNewScheduled(false);
+                  setNewOpening('');
                   setFormOpen(false);
                 }}
                 disabled={!newTitle.trim() || createAward.isPending}
@@ -363,9 +379,9 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                   </Text>
                 </Pressable>
               ) : null}
-              {createAward.error || openAwards.error ? (
+              {openingError || createAward.error || openAwards.error ? (
                 <Text style={[styles.error, { color: tokens.errorText, fontFamily: fonts.body }]}>
-                  {toErrorMessage(createAward.error ?? openAwards.error)}
+                  {openingError ?? toErrorMessage(createAward.error ?? openAwards.error)}
                 </Text>
               ) : null}
             </>

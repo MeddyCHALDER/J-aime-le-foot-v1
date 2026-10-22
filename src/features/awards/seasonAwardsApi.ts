@@ -235,7 +235,9 @@ export async function createAward(
   description?: string,
   /** Équipe type : nombre de joueurs et formation */
   lineup?: { size: number; formation: string },
-  positions: string[] = []
+  positions: string[] = [],
+  /** Heure d'ouverture du vote (ISO) ; absente = vote ouvert tout de suite */
+  opensAt?: string | null
 ): Promise<SeasonAward> {
   const { data, error } = await supabase
     .from('season_awards')
@@ -249,6 +251,7 @@ export async function createAward(
       ...(lineup ? { kind: 'lineup', lineup_size: lineup.size, formation: lineup.formation } : {}),
       // Les postes ne concernent que les trophées « un joueur »
       ...(lineup ? {} : positionsField(positions)),
+      ...(opensAt ? { opens_at: opensAt } : {}),
     })
     .select()
     .single();
@@ -273,6 +276,19 @@ export async function updateAwardPositions(awardId: string, positions: string[])
     .eq('id', awardId);
   if (error) throw error;
   if (count === 0) throw new Error('Modification refusée : seul l’admin de la ligue peut changer les postes.');
+}
+
+/**
+ * Admin : change l'heure d'ouverture du vote (null = ouvert tout de suite). Repoussée dans
+ * le futur, l'annonce sera renvoyée à la nouvelle heure (migration 018).
+ */
+export async function updateAwardOpening(awardId: string, opensAt: string | null): Promise<void> {
+  const { error, count } = await supabase
+    .from('season_awards')
+    .update({ opens_at: opensAt }, { count: 'exact' })
+    .eq('id', awardId);
+  if (error) throw error;
+  if (count === 0) throw new Error('Modification refusée : seul l’admin de la ligue peut changer l’ouverture.');
 }
 
 /** Admin : supprime un trophée et ses votes (cascade côté base). */
