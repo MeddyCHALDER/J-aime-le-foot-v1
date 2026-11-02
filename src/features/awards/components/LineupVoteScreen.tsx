@@ -114,12 +114,11 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
     const line = picking?.label;
     return (roster.data ?? []).filter(
       (p) =>
-        p.player_id !== user?.id &&
         isActivePlayer(p) &&
         (!line || lineOf(p.preferred_position) === line) &&
         (!q || normalize(p.display_name).includes(q))
     );
-  }, [roster.data, query, user?.id, picking]);
+  }, [roster.data, query, picking]);
   const lineCodes = picking
     ? POSITIONS.filter((x) => x.line === picking.label).map((x) => x.code).join(', ')
     : '';
