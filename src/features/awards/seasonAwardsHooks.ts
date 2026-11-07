@@ -127,6 +127,17 @@ export function useCloseAward(seasonId: string | undefined) {
   });
 }
 
+export function usePublishAwardResults(seasonId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (awardId: string) => api.publishAwardResults(awardId),
+    onSuccess: (_, awardId) => {
+      qc.invalidateQueries({ queryKey: voteKeys.award(awardId) });
+      if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
+    },
+  });
+}
+
 export function useCreateAward(seasonId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({

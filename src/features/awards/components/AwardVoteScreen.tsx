@@ -14,11 +14,12 @@ import { useAuth } from '../../auth/hooks';
 import { useLeagueRoster } from '../../members/hooks';
 import { MiniPlayerCard } from '../../cards/MiniPlayerCard';
 import { isActivePlayer, type RosterPlayer } from '../../members/api';
-import { awardBlurb, formatOpening, votingStarted } from '../seasonAwardsApi';
+import { awardBlurb, formatOpening, resultsPending, votingStarted } from '../seasonAwardsApi';
 import {
   useAward,
   useAwardTally,
   useCloseAward,
+  usePublishAwardResults,
   useDeleteAward,
   useMyVotes,
   useNowUntil,
@@ -63,9 +64,14 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
   const started = award.data ? votingStarted(award.data, now) : isOpen;
   const opensAt = isOpen && !started ? award.data?.opens_at : null;
   const lines = award.data?.positions ?? null;
-  // Voix masquées pendant le vote pour ne pas influencer ; visibles une fois clôturé.
-  const tally = useAwardTally(awardId, !isOpen);
+  const isAdmin = !!roster.data?.find((p) => p.player_id === user?.id && p.role === 'admin');
+  // Vote clôturé mais pas encore publié : l'admin dépouille, les autres attendent.
+  const hidden = award.data ? resultsPending(award.data) : false;
+  // Voix masquées pendant le vote pour ne pas influencer ; visibles une fois publiées.
+  const showResults = !isOpen && (!hidden || isAdmin);
+  const tally = useAwardTally(awardId, showResults);
   const close = useCloseAward(award.data?.season_id);
+  const publish = usePublishAwardResults(award.data?.season_id);
   const remove = useDeleteAward(award.data?.season_id);
   const saveLines = useUpdateAwardPositions(awardId, award.data?.season_id);
   const withdraw = useWithdrawVote(awardId);
@@ -80,7 +86,6 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
     vote.mutate(playerId);
   };
 
-  const isAdmin = !!roster.data?.find((p) => p.player_id === user?.id && p.role === 'admin');
   const myChoice = myVotes.data?.[awardId];
 
   const players = useMemo(() => {
@@ -92,11 +97,11 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
         isEligibleFor(lines, p.preferred_position) &&
         (!q || normalize(p.display_name).includes(q))
     );
-    if (!isOpen && tally.data) {
+    if (showResults && tally.data) {
       return [...list].sort((a, b) => (tally.data[b.player_id] ?? 0) - (tally.data[a.player_id] ?? 0));
     }
     return list;
-  }, [roster.data, lines, query, isOpen, tally.data]);
+  }, [roster.data, lines, query, showResults, tally.data]);
 
   if (award.isLoading || roster.isLoading) return <LoadingState message="Chargement du vote…" />;
   if (award.error || roster.error) {
@@ -144,7 +149,7 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
           me && { opacity: 0.5 },
         ]}
       >
-        {!isOpen ? (
+        {showResults ? (
           <Text style={[styles.rank, { color: tokens.muted2, fontFamily: fonts.display }]}>
             {index + 1}
           </Text>
@@ -161,7 +166,7 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
           {item.display_name}
           {me ? ' (toi)' : ''}
         </Text>
-        {!isOpen ? (
+        {showResults ? (
           <Text style={[styles.votes, { color: tokens.text, fontFamily: fonts.body }]}>
             {votes} voix
           </Text>
@@ -184,13 +189,28 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
       ListHeaderComponent={
         <View style={styles.header}>
           <Text style={[styles.eyebrow, { color: tokens.lime, fontFamily: fonts.body }]}>
-            {opensAt ? 'Vote bientôt ouvert' : isOpen ? 'Vote ouvert' : 'Résultats'}
+            {opensAt
+              ? 'Vote bientôt ouvert'
+              : isOpen
+                ? 'Vote ouvert'
+                : hidden
+                  ? isAdmin
+                    ? 'Dépouillement · non publié'
+                    : 'Vote clôturé'
+                  : 'Résultats'}
           </Text>
           <Text style={[styles.title, { color: tokens.text, fontFamily: fonts.display }]}>
             {award.data.title}
           </Text>
           {blurb ? (
             <Text style={[styles.sub, { color: tokens.muted, fontFamily: fonts.body }]}>{blurb}</Text>
+          ) : null}
+          {hidden ? (
+            <Text style={[styles.reserved, { color: tokens.muted, fontFamily: fonts.body }]}>
+              {isAdmin
+                ? 'Toi seul vois les voix. Publie les résultats quand tu as fini de les vérifier.'
+                : 'Le vote est clôturé. Les résultats s’afficheront dès que l’admin les aura publiés.'}
+            </Text>
           ) : null}
           {reserved ? (
             <Text style={[styles.reserved, { color: tokens.muted, fontFamily: fonts.body }]}>
@@ -328,15 +348,46 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
             ) : null}
             {isOpen ? (
               <Pressable
-                onPress={() => close.mutate(awardId)}
+                onPress={() =>
+                  confirmAction(
+                    `Clôturer « ${award.data!.title} » ?`,
+                    'Plus personne ne pourra voter. Toi seul verras les voix jusqu’à ce que tu publies les résultats.',
+                    () => close.mutate(awardId),
+                    'Clôturer'
+                  )
+                }
                 disabled={close.isPending}
                 style={[styles.close, { borderColor: tokens.line }]}
                 accessibilityRole="button"
               >
                 <Text style={[styles.closeText, { color: tokens.text, fontFamily: fonts.body }]}>
-                  {close.isPending ? 'Clôture…' : 'Clôturer le vote et afficher les résultats'}
+                  {close.isPending ? 'Clôture…' : 'Clôturer le vote'}
                 </Text>
               </Pressable>
+            ) : null}
+            {hidden ? (
+              <Pressable
+                onPress={() =>
+                  confirmAction(
+                    `Publier les résultats de « ${award.data!.title} » ?`,
+                    'Toute la ligue verra le classement et le nombre de voix de chaque joueur.',
+                    () => publish.mutate(awardId),
+                    'Publier'
+                  )
+                }
+                disabled={publish.isPending}
+                style={[styles.close, { backgroundColor: tokens.lime, borderColor: tokens.lime }]}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.closeText, { color: tokens.onLime, fontFamily: fonts.body }]}>
+                  {publish.isPending ? 'Publication…' : 'Publier les résultats'}
+                </Text>
+              </Pressable>
+            ) : null}
+            {close.error || publish.error ? (
+              <Text style={[styles.error, { color: tokens.errorText, fontFamily: fonts.body }]}>
+                {toErrorMessage(close.error ?? publish.error)}
+              </Text>
             ) : null}
             <Pressable
               onPress={() =>

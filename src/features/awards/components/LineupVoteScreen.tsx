@@ -18,12 +18,13 @@ import { useAuth } from '../../auth/hooks';
 import { useLeagueRoster } from '../../members/hooks';
 import { isActivePlayer, type RosterPlayer } from '../../members/api';
 import { MiniPlayerCard } from '../../cards/MiniPlayerCard';
-import { formatOpening, votingStarted, type LineupSlots, type SeasonAward } from '../seasonAwardsApi';
+import { formatOpening, resultsPending, votingStarted, type LineupSlots, type SeasonAward } from '../seasonAwardsApi';
 import {
   useCastLineupVote,
   useNowUntil,
   useWithdrawVote,
   useCloseAward,
+  usePublishAwardResults,
   useDeleteAward,
   useLineupResults,
   useMyLineups,
@@ -61,12 +62,17 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
   const withdraw = useWithdrawVote(award.id);
   const setFormat = useSetLineupFormat(award.id, award.season_id);
   const close = useCloseAward(award.season_id);
+  const publish = usePublishAwardResults(award.season_id);
   const remove = useDeleteAward(award.season_id);
   const isOpen = award.is_open;
   const now = useNowUntil([award.opens_at]);
   // Ouverture programmée : on peut composer, pas encore valider
   const opensAt = isOpen && !votingStarted(award, now) ? award.opens_at : null;
-  const results = useLineupResults(award.id, !isOpen);
+  const isAdmin = !!roster.data?.find((p) => p.player_id === user?.id && p.role === 'admin');
+  // Vote clôturé mais pas encore publié : l'admin dépouille, les autres attendent.
+  const hidden = resultsPending(award);
+  const showResults = !isOpen && (!hidden || isAdmin);
+  const results = useLineupResults(award.id, showResults);
 
   const formation = award.formation ?? formatOf(award.lineup_size ?? 11).formations[0];
   const slots = useMemo(() => formationSlots(formation), [formation]);
@@ -87,7 +93,6 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
     setDraft(valid);
   }, [savedSlots, slots]);
 
-  const isAdmin = !!roster.data?.find((p) => p.player_id === user?.id && p.role === 'admin');
   const playerOf = (id: string | undefined) => roster.data?.find((p) => p.player_id === id);
   const placedIds = new Set(Object.values(draft));
   const filled = slots.filter((s) => draft[s.key]).length;
@@ -164,7 +169,7 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
     );
 
   const slotView = (slot: PitchSlot) => {
-    const win = !isOpen ? winners[slot.key] : undefined;
+    const win = showResults ? winners[slot.key] : undefined;
     const pid = isOpen ? draft[slot.key] : win?.player_id;
     const p = playerOf(pid);
     const label = p ? (p.display_name.split(' ').pop() ?? p.display_name) : slot.label;
@@ -208,14 +213,25 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
       contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 12, paddingBottom: insets.bottom + 32 }}
     >
       <Text style={[styles.eyebrow, body, { color: tokens.lime }]}>
-        {opensAt ? 'Vote bientôt ouvert' : isOpen ? 'Vote ouvert' : 'Résultats'} · Équipe type
+        {opensAt
+          ? 'Vote bientôt ouvert'
+          : isOpen
+            ? 'Vote ouvert'
+            : hidden
+              ? isAdmin
+                ? 'Dépouillement · non publié'
+                : 'Vote clôturé'
+              : 'Résultats'}{' '}
+        · Équipe type
       </Text>
       <Text style={[styles.title, { color: tokens.text, fontFamily: fonts.display }]}>{award.title}</Text>
       <Text style={[styles.sub, body, { color: tokens.muted }]}>
         {size} joueurs · {formation}
         {isOpen
           ? ' · touche un poste pour y placer un joueur'
-          : voters
+          : !showResults
+            ? ' · résultats bientôt publiés par l’admin'
+            : voters
             ? ` · ${voters} votant${voters > 1 ? 's' : ''}`
             : ' · aucun vote'}
       </Text>
@@ -330,7 +346,7 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
                 onPress={() =>
                   confirmAction(
                     `Clôturer « ${award.title} » ?`,
-                    'Plus personne ne pourra voter, et l’équipe gagnante s’affichera sur le terrain.',
+                    'Plus personne ne pourra voter. Toi seul verras l’équipe gagnante jusqu’à ce que tu publies les résultats.',
                     () => close.mutate(award.id),
                     'Clôturer'
                   )
@@ -340,10 +356,39 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
                 accessibilityRole="button"
               >
                 <Text style={[styles.secondaryText, body, { color: tokens.text }]}>
-                  {close.isPending ? 'Clôture…' : 'Clôturer le vote et afficher l’équipe'}
+                  {close.isPending ? 'Clôture…' : 'Clôturer le vote'}
                 </Text>
               </Pressable>
             </>
+          ) : null}
+          {hidden ? (
+            <>
+              <Text style={[styles.note, body, { color: tokens.muted }]}>
+                Toi seul vois l’équipe gagnante. Publie les résultats quand tu as fini de les vérifier.
+              </Text>
+              <Pressable
+                onPress={() =>
+                  confirmAction(
+                    `Publier les résultats de « ${award.title} » ?`,
+                    'Toute la ligue verra l’équipe gagnante et les voix de chaque poste.',
+                    () => publish.mutate(award.id),
+                    'Publier'
+                  )
+                }
+                disabled={publish.isPending}
+                style={[styles.primary, { backgroundColor: tokens.lime, marginTop: 10 }]}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.primaryText, body, { color: tokens.onLime }]}>
+                  {publish.isPending ? 'Publication…' : 'Publier les résultats'}
+                </Text>
+              </Pressable>
+            </>
+          ) : null}
+          {close.error || publish.error ? (
+            <Text style={[styles.note, body, { color: tokens.errorText }]}>
+              {toErrorMessage(close.error ?? publish.error)}
+            </Text>
           ) : null}
           <Pressable
             onPress={() =>

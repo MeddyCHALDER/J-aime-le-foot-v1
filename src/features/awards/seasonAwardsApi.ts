@@ -41,6 +41,8 @@ export type SeasonAward = {
   lineup_size?: number | null;
   formation?: string | null;
   is_open: boolean;
+  /** Vote clôturé, résultats visibles par l'admin seul (migration 020). */
+  results_hidden?: boolean;
   /** Lignes (GB, DEF, MIL, ATT) qui peuvent recevoir des voix ; vide = tous (migration 016) */
   positions?: string[] | null;
   /** Avant cette heure, le trophée est visible mais fermé au vote (migration 016) */
@@ -146,9 +148,30 @@ export async function castVote(awardId: string, nominationId: string, voterId: s
   return data;
 }
 
+/** Admin : clôture le vote ; les résultats restent masqués jusqu'à publishAwardResults (migration 020). */
 export async function closeAward(awardId: string) {
-  const { error } = await supabase.from('season_awards').update({ is_open: false }).eq('id', awardId);
+  const { error, count } = await supabase
+    .from('season_awards')
+    .update({ is_open: false, results_hidden: true }, { count: 'exact' })
+    .eq('id', awardId);
   if (error) throw error;
+  if (count === 0) throw new Error('Clôture refusée : seul l’admin de la ligue peut clôturer le vote.');
+}
+
+/** Admin : rend les résultats d'un vote clôturé visibles par toute la ligue. */
+export async function publishAwardResults(awardId: string) {
+  const { error, count } = await supabase
+    .from('season_awards')
+    .update({ results_hidden: false }, { count: 'exact' })
+    .eq('id', awardId)
+    .eq('is_open', false);
+  if (error) throw error;
+  if (count === 0) throw new Error('Publication refusée : seul l’admin de la ligue peut publier les résultats.');
+}
+
+/** Vote clôturé dont l'admin n'a pas encore publié les résultats. */
+export function resultsPending(award: Pick<SeasonAward, 'is_open' | 'results_hidden'>) {
+  return !award.is_open && !!award.results_hidden;
 }
 
 export async function fetchAward(awardId: string): Promise<SeasonAward | null> {

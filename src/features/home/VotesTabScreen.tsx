@@ -15,7 +15,7 @@ import { useAppTheme } from '../../theme/ThemeContext';
 import { useAuth } from '../auth/hooks';
 import { useLeagueRoster } from '../members/hooks';
 import { MiniPlayerCard } from '../cards/MiniPlayerCard';
-import { awardBlurb, formatOpening, votingStarted } from '../awards/seasonAwardsApi';
+import { awardBlurb, formatOpening, resultsPending, votingStarted } from '../awards/seasonAwardsApi';
 import {
   useCreateAward,
   useMyLineups,
@@ -164,7 +164,9 @@ export function VotesTabScreen({ onAwardPress }: VotesTabScreenProps) {
                     ? isLineup
                       ? 'Compose ton équipe'
                       : 'À voter'
-                    : 'Pas de vote';
+                    : resultsPending(award)
+                      ? 'Résultats bientôt publiés'
+                      : 'Pas de vote';
             return (
               <Appear key={award.id} index={i}>
               <Pressable

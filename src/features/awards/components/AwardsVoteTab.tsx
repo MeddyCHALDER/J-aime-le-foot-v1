@@ -104,6 +104,7 @@ export function AwardsVoteTab({ seasonId, leagueId, isAdmin }: AwardsVoteTabProp
             awardId={selected.id}
             awardTitle={selected.title}
             isOpen={selected.is_open}
+            showCounts={!selected.is_open && !selected.results_hidden}
             voterId={user.id}
           />
         ) : null
@@ -116,11 +117,14 @@ function AwardBallot({
   awardId,
   awardTitle,
   isOpen,
+  showCounts,
   voterId,
 }: {
   awardId: string;
   awardTitle: string;
   isOpen: boolean;
+  /** Voix lisibles seulement une fois les résultats publiés (migration 020). */
+  showCounts: boolean;
   voterId: string;
 }) {
   const { data: nominations = [], isLoading, refetch } = useAwardNominations(awardId);
@@ -141,7 +145,7 @@ function AwardBallot({
           <List.Item
             key={n.id}
             title={n.profile?.display_name ?? n.player_id.slice(0, 6)}
-            description={`${n.vote_count ?? 0} voix`}
+            description={showCounts ? `${n.vote_count ?? 0} voix` : undefined}
             onPress={
               isOpen
                 ? async () => {
@@ -167,7 +171,7 @@ function AwardBallot({
       })}
       {!isOpen ? (
         <Text variant="bodySmall" style={styles.hint}>
-          Vote clôturé.
+          {showCounts ? 'Vote clôturé.' : 'Vote clôturé · résultats pas encore publiés.'}
         </Text>
       ) : null}
     </View>
