@@ -222,15 +222,12 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
                 leagueName: league.data?.name ?? null,
                 title: award.data!.title,
                 blurb,
-                // Tous les joueurs, sans le filtre de recherche
-                ranking: (roster.data ?? [])
-                  .map((p) => ({
-                    name: p.display_name,
-                    avatarUrl: p.avatar_url,
-                    votes: tally.data?.[p.player_id] ?? 0,
-                  }))
-                  .sort((a, b) => b.votes - a.votes),
-                totalVotes: Object.values(tally.data ?? {}).reduce((n, v) => n + v, 0),
+                winners: topVoted(roster.data ?? [], tally.data ?? {}).map((p) => ({
+                  name: p.display_name,
+                  avatarUrl: p.avatar_url,
+                  overall: p.overall ?? null,
+                  position: p.preferred_position ?? null,
+                })),
               })}
             />
           ) : null}
@@ -438,6 +435,12 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
       }
     />
   );
+}
+
+/** Joueur(s) le(s) plus voté(s), ex æquo compris ; tous les joueurs, sans le filtre de recherche. */
+function topVoted(roster: RosterPlayer[], tally: Record<string, number>) {
+  const best = Math.max(0, ...roster.map((p) => tally[p.player_id] ?? 0));
+  return best > 0 ? roster.filter((p) => (tally[p.player_id] ?? 0) === best) : [];
 }
 
 const styles = StyleSheet.create({

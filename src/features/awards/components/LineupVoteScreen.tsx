@@ -260,10 +260,21 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
             winners: Object.fromEntries(
               Object.entries(winners).flatMap(([key, w]) => {
                 const p = playerOf(w.player_id);
-                return p ? [[key, { name: p.display_name, avatarUrl: p.avatar_url, votes: w.votes }]] : [];
+                return p
+                  ? [
+                      [
+                        key,
+                        {
+                          name: p.display_name,
+                          avatarUrl: p.avatar_url,
+                          overall: p.overall ?? null,
+                          position: p.preferred_position ?? null,
+                        },
+                      ],
+                    ]
+                  : [];
               })
             ),
-            voters,
           })}
         />
       ) : null}
