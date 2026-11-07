@@ -3,6 +3,7 @@
  *   { kind: 'config' }                     → clé publique VAPID (abonnement côté app)
  *   { kind: 'match_open', matchId }        → inscriptions ouvertes pour un match
  *   { kind: 'vote_open', awardIds: [...] } → votes ouverts pour un ou plusieurs trophées
+ *   { kind: 'results', awardId }           → résultats d'un trophée publiés (migration 020)
  *   { kind: 'test' }                       → notification de test sur ses propres appareils
  *   { kind: 'due' }                        → inscriptions et votes arrivés à leur heure d'ouverture
  *                                            (appelé chaque minute par pg_cron, migrations 011 et 016)
@@ -139,6 +140,33 @@ Deno.serve(async (req) => {
       const built = await votesAnnounce(admin, ready);
       if (!built) return json({ error: 'Ligue introuvable' }, 404);
       announce = built;
+    } else if (kind === 'results') {
+      const awardId = String(body.awardId ?? '');
+      if (!awardId) return json({ error: 'awardId requis' }, 400);
+
+      const { data: award } = await admin.from('season_awards').select('*').eq('id', awardId).maybeSingle();
+      if (!award) return json({ error: 'Trophée introuvable' }, 404);
+      // Rien à annoncer tant que le vote n'est pas clôturé et publié.
+      if (award.is_open || award.results_hidden) return json({ ok: true, sent: 0 });
+
+      const { data: isAdmin } = await asUser.rpc('is_season_admin', { p_season_id: award.season_id });
+      if (!isAdmin) return json({ error: 'Seul l’admin de la ligue peut publier les résultats' }, 403);
+
+      const leagueId = await leagueOfSeason(admin, String(award.season_id));
+      if (!leagueId) return json({ error: 'Ligue introuvable' }, 404);
+      announce = {
+        leagueId,
+        refs: [awardId],
+        payload: (leagueName) => ({
+          title: `Résultats · ${leagueName}`,
+          body:
+            award.kind === 'lineup'
+              ? `« ${award.title} » : découvre l’équipe type élue.`
+              : `« ${award.title} » : découvre le vainqueur.`,
+          url: `/?open=award&id=${awardId}&league=${leagueId}`,
+          tag: `results-${awardId}`,
+        }),
+      };
     } else {
       return json({ error: 'kind inconnu' }, 400);
     }

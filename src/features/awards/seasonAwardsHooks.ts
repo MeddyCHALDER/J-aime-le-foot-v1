@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from './seasonAwardsApi';
-import { announceVotesOpen } from '../notifications/api';
+import { announceResults, announceVotesOpen } from '../notifications/api';
 
 export const seasonAwardsKeys = {
   list: (seasonId: string) => ['season_awards', seasonId] as const,
@@ -134,6 +134,7 @@ export function usePublishAwardResults(seasonId: string | undefined) {
     onSuccess: (_, awardId) => {
       qc.invalidateQueries({ queryKey: voteKeys.award(awardId) });
       if (seasonId) qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(seasonId) });
+      void announceResults(awardId);
     },
   });
 }

@@ -172,6 +172,10 @@ export function announceVotesOpen(awardIds: string[]) {
   return announce({ kind: 'vote_open', awardIds });
 }
 
+export function announceResults(awardId: string) {
+  return announce({ kind: 'results', awardId });
+}
+
 /** Écran à ouvrir depuis une notification (paramètres ?open=… posés par send-push). */
 export type OpenTarget =
   | { screen: 'match'; matchId: string }
