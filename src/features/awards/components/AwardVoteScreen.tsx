@@ -34,6 +34,8 @@ import { ErrorState, LoadingState, Appear } from '../../../ui';
 import { toErrorMessage } from '../../../lib/errors';
 import { confirmAction } from '../../../lib/confirm';
 import { LineupVoteScreen } from './LineupVoteScreen';
+import { ShareResultsButton } from './ShareResultsButton';
+import { useLeague } from '../../leagues/hooks';
 
 interface AwardVoteScreenProps {
   awardId: string;
@@ -56,6 +58,7 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
   const { user } = useAuth();
   const award = useAward(awardId);
   const roster = useLeagueRoster(leagueId);
+  const league = useLeague(leagueId);
   const myVotes = useMyVotes([awardId], user?.id);
   const vote = useVoteForPlayer(awardId, user?.id);
   const isOpen = award.data?.is_open ?? true;
@@ -211,6 +214,25 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
                 ? 'Toi seul vois les voix. Publie les résultats quand tu as fini de les vérifier.'
                 : 'Le vote est clôturé. Les résultats s’afficheront dès que l’admin les aura publiés.'}
             </Text>
+          ) : null}
+          {showResults && tally.data && Object.keys(tally.data).length > 0 ? (
+            <ShareResultsButton
+              build={() => ({
+                kind: 'single',
+                leagueName: league.data?.name ?? null,
+                title: award.data!.title,
+                blurb,
+                // Tous les joueurs, sans le filtre de recherche
+                ranking: (roster.data ?? [])
+                  .map((p) => ({
+                    name: p.display_name,
+                    avatarUrl: p.avatar_url,
+                    votes: tally.data?.[p.player_id] ?? 0,
+                  }))
+                  .sort((a, b) => b.votes - a.votes),
+                totalVotes: Object.values(tally.data ?? {}).reduce((n, v) => n + v, 0),
+              })}
+            />
           ) : null}
           {reserved ? (
             <Text style={[styles.reserved, { color: tokens.muted, fontFamily: fonts.body }]}>

@@ -33,6 +33,8 @@ import {
 import { LINEUP_FORMATS, formatOf, formationSlots, type PitchSlot } from '../formations';
 import { LoadingState } from '../../../ui';
 import { AwardOpeningEditor } from './OpeningPicker';
+import { ShareResultsButton } from './ShareResultsButton';
+import { useLeague } from '../../leagues/hooks';
 import { lineOf, POSITIONS } from '../../cards/positions';
 import { toErrorMessage } from '../../../lib/errors';
 import { confirmAction } from '../../../lib/confirm';
@@ -57,6 +59,7 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
   const { width } = useWindowDimensions();
   const { user } = useAuth();
   const roster = useLeagueRoster(leagueId);
+  const league = useLeague(leagueId);
   const mine = useMyLineups([award.id], user?.id);
   const cast = useCastLineupVote(award.id);
   const withdraw = useWithdrawVote(award.id);
@@ -245,6 +248,25 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
         <View style={[styles.smallBox, { left: '36%', right: '36%' }]} />
         {slots.map(slotView)}
       </View>
+
+      {showResults && voters > 0 ? (
+        <ShareResultsButton
+          build={() => ({
+            kind: 'lineup',
+            leagueName: league.data?.name ?? null,
+            title: award.title,
+            formation,
+            slots,
+            winners: Object.fromEntries(
+              Object.entries(winners).flatMap(([key, w]) => {
+                const p = playerOf(w.player_id);
+                return p ? [[key, { name: p.display_name, avatarUrl: p.avatar_url, votes: w.votes }]] : [];
+              })
+            ),
+            voters,
+          })}
+        />
+      ) : null}
 
       {isOpen ? (
         <>

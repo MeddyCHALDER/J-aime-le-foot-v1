@@ -15,13 +15,15 @@ const PAD = 72;
 const DISPLAY = "italic 700 {size}px 'Chakra Petch', 'Arial Narrow', sans-serif";
 const BODY = "{weight} {size}px Barlow, 'Helvetica Neue', sans-serif";
 
-const display = (size: number) => DISPLAY.replace('{size}', String(size));
-const body = (size: number, weight = 500) =>
+export const display = (size: number) => DISPLAY.replace('{size}', String(size));
+export const body = (size: number, weight = 500) =>
   BODY.replace('{size}', String(size)).replace('{weight}', String(weight));
 
-function loadImage(src: string): Promise<HTMLImageElement | null> {
+export function loadImage(src: string, crossOrigin = false): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
+    // Photo d'un autre domaine : sans CORS elle « salirait » le canvas et bloquerait l'export.
+    if (crossOrigin) img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
     img.src = src;
@@ -29,7 +31,7 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
 }
 
 /** Coupe un texte trop long avec « … » pour tenir dans maxWidth. */
-function fit(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
+export function fit(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
   if (ctx.measureText(text).width <= maxWidth) return text;
   let t = text;
   while (t.length > 1 && ctx.measureText(`${t}…`).width > maxWidth) t = t.slice(0, -1);
@@ -177,12 +179,16 @@ export async function renderMatchSheetPng(data: MatchSheetData): Promise<Blob> {
  * Propose l'image au téléphone (menu de partage : « Enregistrer l'image », WhatsApp…)
  * ou la télécharge directement sur ordinateur.
  */
-export async function shareOrDownloadPng(blob: Blob, filename: string): Promise<'shared' | 'downloaded'> {
+export async function shareOrDownloadPng(
+  blob: Blob,
+  filename: string,
+  title = 'Feuille de match'
+): Promise<'shared' | 'downloaded'> {
   const file = new File([blob], filename, { type: 'image/png' });
   const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
   if (nav.share && nav.canShare?.({ files: [file] })) {
     try {
-      await nav.share({ files: [file], title: 'Feuille de match' });
+      await nav.share({ files: [file], title });
       return 'shared';
     } catch (e) {
       // Partage annulé par l'utilisateur : pas une erreur
