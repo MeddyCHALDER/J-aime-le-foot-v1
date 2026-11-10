@@ -43,6 +43,8 @@ export type SeasonAward = {
   is_open: boolean;
   /** Vote clôturé, résultats visibles par l'admin seul (migration 020). */
   results_hidden?: boolean;
+  /** Équipe type : poste → joueur choisi par l'admin en cas d'égalité (migration 021). */
+  tie_picks?: Record<string, string> | null;
   /** Lignes (GB, DEF, MIL, ATT) qui peuvent recevoir des voix ; vide = tous (migration 016) */
   positions?: string[] | null;
   /** Avant cette heure, le trophée est visible mais fermé au vote (migration 016) */
@@ -167,6 +169,16 @@ export async function publishAwardResults(awardId: string) {
     .eq('is_open', false);
   if (error) throw error;
   if (count === 0) throw new Error('Publication refusée : seul l’admin de la ligue peut publier les résultats.');
+}
+
+/** Admin : choisit le joueur retenu à un poste de l'équipe type en cas d'égalité. */
+export async function setLineupTiePick(award: Pick<SeasonAward, 'id' | 'tie_picks'>, slot: string, playerId: string) {
+  const { error, count } = await supabase
+    .from('season_awards')
+    .update({ tie_picks: { ...(award.tie_picks ?? {}), [slot]: playerId } }, { count: 'exact' })
+    .eq('id', award.id);
+  if (error) throw error;
+  if (count === 0) throw new Error('Choix refusé : seul l’admin de la ligue peut départager une égalité.');
 }
 
 /** Vote clôturé dont l'admin n'a pas encore publié les résultats. */

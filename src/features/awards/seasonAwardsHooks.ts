@@ -139,6 +139,17 @@ export function usePublishAwardResults(seasonId: string | undefined) {
   });
 }
 
+export function useSetLineupTiePick(award: api.SeasonAward) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ slot, playerId }: { slot: string; playerId: string }) => api.setLineupTiePick(award, slot, playerId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: voteKeys.award(award.id) });
+      qc.invalidateQueries({ queryKey: seasonAwardsKeys.list(award.season_id) });
+    },
+  });
+}
+
 export function useCreateAward(seasonId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
