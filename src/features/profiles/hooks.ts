@@ -13,6 +13,19 @@ export function useProfile(id: string | undefined) {
   });
 }
 
+export function useAdminSetMemberAvatar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ playerId, avatarUrl }: { playerId: string; avatarUrl: string | null }) =>
+      api.adminSetMemberAvatar(playerId, avatarUrl),
+    onSuccess: () => {
+      // La photo apparaît aussi dans l'effectif (roster), les votes, les compos…
+      qc.invalidateQueries({ queryKey: ['profiles'] });
+      qc.invalidateQueries({ queryKey: ['league_roster'] });
+    },
+  });
+}
+
 export function useUpdateProfile() {
   const qc = useQueryClient();
   return useMutation({

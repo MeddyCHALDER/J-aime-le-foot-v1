@@ -155,7 +155,17 @@ function AppNavigator({ userId }: { userId: string }) {
         {(props) => <MatchDetailScreen matchId={props.route.params.matchId} />}
       </AppStack.Screen>
       <AppStack.Screen name="LeagueMembers" options={{ title: 'Joueurs' }}>
-        {(props) => <LeagueMembersScreen leagueId={props.route.params.leagueId} />}
+        {(props) => (
+          <LeagueMembersScreen
+            leagueId={props.route.params.leagueId}
+            onPlayerPress={(playerId) =>
+              props.navigation.navigate('PlayerProfile', {
+                playerId,
+                leagueId: props.route.params.leagueId,
+              })
+            }
+          />
+        )}
       </AppStack.Screen>
       <AppStack.Screen name="AwardVote" options={{ title: 'Vote' }}>
         {(props) => (
@@ -170,6 +180,7 @@ function AppNavigator({ userId }: { userId: string }) {
         {(props) => (
           <PlayerProfileScreen
             playerId={props.route.params.playerId}
+            leagueId={props.route.params.leagueId}
             onBack={() => props.navigation.goBack()}
           />
         )}

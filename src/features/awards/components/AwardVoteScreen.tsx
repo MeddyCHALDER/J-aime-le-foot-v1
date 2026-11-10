@@ -14,7 +14,14 @@ import { useAuth } from '../../auth/hooks';
 import { useLeagueRoster } from '../../members/hooks';
 import { MiniPlayerCard } from '../../cards/MiniPlayerCard';
 import { isActivePlayer, type RosterPlayer } from '../../members/api';
-import { awardBlurb, formatOpening, resultsPending, votingStarted } from '../seasonAwardsApi';
+import {
+  awardBlurb,
+  formatOpening,
+  isBallonDor,
+  rankByVotes,
+  resultsPending,
+  votingStarted,
+} from '../seasonAwardsApi';
 import {
   useAward,
   useAwardTally,
@@ -214,6 +221,9 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
                 ? 'Toi seul vois les voix. Publie les résultats quand tu as fini de les vérifier.'
                 : 'Le vote est clôturé. Les résultats s’afficheront dès que l’admin les aura publiés.'}
             </Text>
+          ) : null}
+          {showResults && tally.data && isBallonDor(award.data) ? (
+            <TopFive roster={roster.data ?? []} tally={tally.data} meId={user?.id} />
           ) : null}
           {showResults && tally.data && Object.keys(tally.data).length > 0 ? (
             <ShareResultsButton
@@ -437,6 +447,64 @@ export function AwardVoteScreen({ awardId, leagueId, onDeleted }: AwardVoteScree
   );
 }
 
+/** Podium du Ballon d'Or : les 5 premiers rangs, ex æquo compris, avec leur nombre de voix. */
+function TopFive({
+  roster,
+  tally,
+  meId,
+}: {
+  roster: RosterPlayer[];
+  tally: Record<string, number>;
+  meId?: string;
+}) {
+  const { tokens } = useAppTheme();
+  const top = rankByVotes(roster, tally, 5);
+  return (
+    <View style={[styles.top, { backgroundColor: tokens.surface, borderColor: tokens.lime }]}>
+      <Text style={[styles.topTitle, { color: tokens.lime, fontFamily: fonts.body }]}>
+        Top 5 du Ballon d’Or
+      </Text>
+      {top.length === 0 ? (
+        <Text style={[styles.topEmpty, { color: tokens.muted, fontFamily: fonts.body }]}>
+          Aucune voix pour ce trophée.
+        </Text>
+      ) : (
+        top.map(({ player, votes, rank }) => (
+          <View
+            key={player.player_id}
+            style={[styles.topRow, { borderTopColor: tokens.line }]}
+            accessibilityLabel={`${rank}${rank === 1 ? 'er' : 'e'}, ${player.display_name}, ${votes} voix`}
+          >
+            <Text
+              style={[
+                styles.topRank,
+                { color: rank === 1 ? tokens.lime : tokens.text, fontFamily: fonts.display },
+              ]}
+            >
+              {rank}
+            </Text>
+            <MiniPlayerCard
+              size="xs"
+              displayName={player.display_name}
+              avatarUrl={player.avatar_url}
+              overall={player.overall}
+              position={player.preferred_position}
+              highlighted={rank === 1}
+            />
+            <Text style={[styles.name, { color: tokens.text, fontFamily: fonts.body }]} numberOfLines={1}>
+              {player.display_name}
+              {player.player_id === meId ? ' (toi)' : ''}
+            </Text>
+            <Text style={[styles.votes, { color: tokens.text, fontFamily: fonts.body }]}>
+              {votes} voix
+            </Text>
+          </View>
+        ))
+      )}
+    </View>
+  );
+}
+
 /** Joueur(s) le(s) plus voté(s), ex æquo compris ; tous les joueurs, sans le filtre de recherche. */
 function topVoted(roster: RosterPlayer[], tally: Record<string, number>) {
   const best = Math.max(0, ...roster.map((p) => tally[p.player_id] ?? 0));
@@ -501,5 +569,10 @@ const styles = StyleSheet.create({
   linesBox: { borderWidth: 1, borderRadius: 16, padding: 16, marginTop: 16 },
   linesTitle: { fontSize: 11, fontWeight: '600', letterSpacing: 1.8, textTransform: 'uppercase' },
   linesHint: { fontSize: 13, marginTop: 4, marginBottom: 12 },
+  top: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 4, marginTop: 16 },
+  topTitle: { fontSize: 11, fontWeight: '600', letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 6 },
+  topEmpty: { fontSize: 14, paddingBottom: 10 },
+  topRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderTopWidth: StyleSheet.hairlineWidth },
+  topRank: { width: 22, fontSize: 20, fontStyle: 'italic', fontWeight: '700', textAlign: 'center' },
   saveLines: { height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });

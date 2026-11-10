@@ -19,7 +19,14 @@ import { toErrorMessage } from '../../lib/errors';
 import { confirmAction } from '../../lib/confirm';
 
 /** Écran de l'admin : demandes à valider, joueurs actifs, suspendus, et invitation. */
-export function LeagueMembersScreen({ leagueId }: { leagueId: string }) {
+export function LeagueMembersScreen({
+  leagueId,
+  onPlayerPress,
+}: {
+  leagueId: string;
+  /** Ouvre la carte FIFA et la photo du joueur */
+  onPlayerPress?: (playerId: string) => void;
+}) {
   const insets = useSafeAreaInsets();
   const { tokens } = useAppTheme();
   const { user } = useAuth();
@@ -73,23 +80,34 @@ export function LeagueMembersScreen({ leagueId }: { leagueId: string }) {
     const me = p.player_id === user?.id;
     return (
       <View key={p.player_id} style={[styles.row, { borderColor: tokens.line, backgroundColor: tokens.surface }]}>
-        <MiniPlayerCard
-          size="xs"
-          displayName={p.display_name}
-          avatarUrl={p.avatar_url}
-          overall={p.overall}
-          position={p.preferred_position}
-        />
-        <View style={{ flex: 1 }}>
-          <Text numberOfLines={1} style={[styles.name, body, { color: tokens.text }]}>
-            {p.display_name}
-            {me ? ' (toi)' : ''}
-          </Text>
-          <Text style={[styles.meta, body, { color: tokens.muted }]}>
-            {p.role === 'admin' ? 'Admin' : 'Joueur'}
-            {p.preferred_position ? ` · ${p.preferred_position}` : ''}
-          </Text>
-        </View>
+        <Pressable
+          onPress={onPlayerPress ? () => onPlayerPress(p.player_id) : undefined}
+          disabled={!onPlayerPress}
+          accessibilityRole="button"
+          accessibilityLabel={`Voir la carte et la photo de ${p.display_name}`}
+          style={styles.player}
+        >
+          <MiniPlayerCard
+            size="xs"
+            displayName={p.display_name}
+            avatarUrl={p.avatar_url}
+            overall={p.overall}
+            position={p.preferred_position}
+          />
+          <View style={{ flex: 1 }}>
+            <Text numberOfLines={1} style={[styles.name, body, { color: tokens.text }]}>
+              {p.display_name}
+              {me ? ' (toi)' : ''}
+            </Text>
+            <Text style={[styles.meta, body, { color: tokens.muted }]}>
+              {p.role === 'admin' ? 'Admin' : 'Joueur'}
+              {p.preferred_position ? ` · ${p.preferred_position}` : ''}
+            </Text>
+            {onPlayerPress ? (
+              <Text style={[styles.link, body, { color: tokens.lime }]}>Carte et photo ›</Text>
+            ) : null}
+          </View>
+        </Pressable>
         {me ? null : <View style={styles.actions}>{actions}</View>}
       </View>
     );
@@ -213,6 +231,8 @@ const styles = StyleSheet.create({
   section: { marginTop: 22 },
   sectionTitle: { fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
   hint: { fontSize: 13, lineHeight: 18, marginBottom: 8 },
+  player: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  link: { fontSize: 12, fontWeight: '700', marginTop: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 14, padding: 10, marginBottom: 8 },
   name: { fontSize: 15, fontWeight: '700' },
   meta: { fontSize: 12, marginTop: 2 },

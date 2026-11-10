@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 import { Text, Button, TextInput, SegmentedButtons, HelperText } from 'react-native-paper';
 import { Screen, LoadingState, ErrorState } from '../../../ui';
 import { toErrorMessage } from '../../../lib/errors';
-import { useProfile, useUpdateProfile } from '../hooks';
+import { useAdminSetMemberAvatar, useProfile, useUpdateProfile } from '../hooks';
+import { useLeague } from '../../leagues/hooks';
 import { useAuth } from '../../auth/hooks';
 import { pickMediaFile } from '../../media/api';
 import { useUploadMedia } from '../../media/hooks';
@@ -15,12 +16,18 @@ import { isKnownPosition } from '../../cards/positions';
 
 interface PlayerProfileScreenProps {
   playerId: string;
+  /** Ligue d'où l'on vient (écran Joueurs) : son admin peut gérer la photo du joueur. */
+  leagueId?: string;
   onBack: () => void;
 }
 
-export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenProps) {
+export function PlayerProfileScreen({ playerId, leagueId, onBack }: PlayerProfileScreenProps) {
   const { user } = useAuth();
   const isOwn = user?.id === playerId;
+  const league = useLeague(leagueId);
+  // Admin qui consulte un joueur de sa ligue (le serveur revérifie, migration 021)
+  const managedByMe = !isOwn && !!user?.id && league.data?.created_by === user.id;
+  const adminSetAvatar = useAdminSetMemberAvatar();
   const { data: profile, isLoading, error, refetch } = useProfile(playerId);
   const updateProfile = useUpdateProfile();
   const uploadMedia = useUploadMedia();
@@ -76,10 +83,14 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
         contentType: picked.contentType,
       });
 
-      await updateProfile.mutateAsync({
-        id: playerId,
-        updates: { avatar_url: publicUrl },
-      });
+      if (managedByMe) {
+        await adminSetAvatar.mutateAsync({ playerId, avatarUrl: publicUrl });
+      } else {
+        await updateProfile.mutateAsync({
+          id: playerId,
+          updates: { avatar_url: publicUrl },
+        });
+      }
       setPreviewUrl(publicUrl);
       refetch();
     } catch (e) {
@@ -106,18 +117,33 @@ export function PlayerProfileScreen({ playerId, onBack }: PlayerProfileScreenPro
           style={styles.fifa}
         />
 
-        {isOwn ? (
+        {isOwn || managedByMe ? (
           <>
+            {managedByMe ? (
+              <Text variant="labelMedium" style={styles.adminHint}>
+                Admin · tu peux voir et changer la photo de sa carte.
+              </Text>
+            ) : null}
             <Button
               mode="outlined"
               onPress={() => setPhotoGuide(true)}
-              loading={uploadMedia.isPending || updateProfile.isPending}
-              disabled={uploadMedia.isPending}
+              loading={uploadMedia.isPending || updateProfile.isPending || adminSetAvatar.isPending}
+              disabled={uploadMedia.isPending || adminSetAvatar.isPending}
               style={styles.button}
               icon="camera"
             >
-              Changer la photo
+              {managedByMe ? 'Changer sa photo' : 'Changer la photo'}
             </Button>
+            {managedByMe && avatarUrl ? (
+              <Button
+                mode="text"
+                onPress={() => Linking.openURL(avatarUrl)}
+                style={styles.button}
+                icon="image"
+              >
+                Voir la photo en grand
+              </Button>
+            ) : null}
             {avatarError ? (
               <HelperText type="error" visible>
                 {avatarError}
@@ -216,6 +242,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 8, alignItems: 'center' },
   fifa: { marginBottom: 16 },
   bio: { marginTop: 12, marginBottom: 8, alignSelf: 'stretch' },
+  adminHint: { opacity: 0.8, marginBottom: 4, alignSelf: 'stretch', textAlign: 'center' },
   meta: { opacity: 0.8, marginBottom: 16, alignSelf: 'stretch' },
   button: { marginTop: 8, alignSelf: 'stretch' },
   input: { marginBottom: 12, alignSelf: 'stretch' },

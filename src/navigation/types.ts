@@ -14,7 +14,8 @@ export type AppStackParamList = {
   MatchDetail: { matchId: string };
   AwardVote: { awardId: string; leagueId: string };
   LeagueMembers: { leagueId: string };
-  PlayerProfile: { playerId: string };
+  /** leagueId : ouvert depuis l'écran Joueurs de l'admin (gestion de la photo) */
+  PlayerProfile: { playerId: string; leagueId?: string };
   LeagueDetail: { leagueId: string };
 };
 

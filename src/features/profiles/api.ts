@@ -10,6 +10,20 @@ export async function fetchProfile(id: string): Promise<Profile | null> {
   return data as Profile;
 }
 
+/** L'admin d'une ligue change la photo d'un de ses joueurs (migration 021). */
+export async function adminSetMemberAvatar(playerId: string, avatarUrl: string | null): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_member_avatar', {
+    p_player_id: playerId,
+    p_avatar_url: avatarUrl,
+  });
+  if (error) {
+    if (error.code === 'PGRST202' || /admin_set_member_avatar/.test(error.message)) {
+      throw new Error('Fonction manquante : exécute la migration 021 dans Supabase.');
+    }
+    throw error;
+  }
+}
+
 export async function updateProfile(
   id: string,
   updates: Partial<Pick<Profile, 'display_name' | 'avatar_url' | 'preferred_position' | 'strong_foot' | 'bio'>>

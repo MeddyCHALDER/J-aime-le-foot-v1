@@ -330,6 +330,38 @@ export function awardBlurb(award: Pick<SeasonAward, 'type' | 'description'>): st
   return award.description || AWARD_CATALOG.find((c) => c.type === award.type)?.blurb || null;
 }
 
+/** Ballon d'Or : le classique, ou un trophée créé par l'admin avec ce nom. */
+export function isBallonDor(award: Pick<SeasonAward, 'type' | 'title'>): boolean {
+  if (award.type === 'ballon_dor') return true;
+  const t = award.title
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[’']/g, ' ');
+  return /ballon\s*d\s*or/.test(t);
+}
+
+/**
+ * Classement des plus votés : rang « olympique » (ex æquo au même rang, puis on saute),
+ * limité aux `limit` premiers rangs. Les joueurs sans voix n'y figurent pas.
+ */
+export function rankByVotes<T extends { player_id: string }>(
+  players: T[],
+  tally: Record<string, number>,
+  limit = 5
+): Array<{ player: T; votes: number; rank: number }> {
+  const sorted = players
+    .map((player) => ({ player, votes: tally[player.player_id] ?? 0 }))
+    .filter((r) => r.votes > 0)
+    .sort((a, b) => b.votes - a.votes);
+  const out: Array<{ player: T; votes: number; rank: number }> = [];
+  sorted.forEach((r, i) => {
+    const rank = i > 0 && r.votes === sorted[i - 1].votes ? out[i - 1].rank : i + 1;
+    out.push({ ...r, rank });
+  });
+  return out.filter((r) => r.rank <= limit);
+}
+
 /** Équipe type : poste → joueur */
 export type LineupSlots = Record<string, string>;
 
