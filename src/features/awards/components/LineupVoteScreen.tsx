@@ -29,7 +29,9 @@ import {
   useLineupResults,
   useMyLineups,
   useSetLineupFormat,
+  useSetLineupTiePick,
 } from '../seasonAwardsHooks';
+import { computeLineupWinners } from '../lineupWinners';
 import { LINEUP_FORMATS, formatOf, formationSlots, type PitchSlot } from '../formations';
 import { LoadingState } from '../../../ui';
 import { AwardOpeningEditor } from './OpeningPicker';
@@ -67,6 +69,7 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
   const close = useCloseAward(award.season_id);
   const publish = usePublishAwardResults(award.season_id);
   const remove = useDeleteAward(award.season_id);
+  const tiePick = useSetLineupTiePick(award);
   const isOpen = award.is_open;
   const now = useNowUntil([award.opens_at]);
   // Ouverture programmée : on peut composer, pas encore valider
@@ -101,19 +104,19 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
   const filled = slots.filter((s) => draft[s.key]).length;
   const dirty = JSON.stringify(draft) !== JSON.stringify(savedSlots ?? {});
 
-  // Résultats : pour chaque poste, le joueur le plus voté, un joueur ne pouvant gagner qu'un poste
-  const winners = useMemo(() => {
-    const rows = [...(results.data ?? [])].sort((a, b) => b.votes - a.votes);
-    const bySlot: Record<string, { player_id: string; votes: number }> = {};
-    const used = new Set<string>();
-    for (const r of rows) {
-      if (bySlot[r.slot] || used.has(r.player_id)) continue;
-      if (!slots.some((s) => s.key === r.slot)) continue;
-      bySlot[r.slot] = { player_id: r.player_id, votes: r.votes };
-      used.add(r.player_id);
-    }
-    return bySlot;
-  }, [results.data, slots]);
+  // Résultats : pour chaque poste, le joueur le plus voté, un joueur ne pouvant gagner qu'un poste.
+  // Égalité à un poste : l'admin choisit avant de publier.
+  const { winners, ties } = useMemo(
+    () =>
+      computeLineupWinners(
+        results.data ?? [],
+        slots.map((s) => s.key),
+        award.tie_picks ?? {}
+      ),
+    [results.data, slots, award.tie_picks]
+  );
+  const tie = ties[0];
+  const tieSlot = tie ? slots.find((s) => s.key === tie.slot) : undefined;
   const voters = results.data?.[0]?.voters ?? 0;
 
   // Seuls les joueurs de la ligne du poste touché (un poste MIL ne propose que MDC / MC / MOC)
@@ -202,8 +205,8 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
           {label}
         </Text>
         {win ? (
-          <Text style={[styles.slotVotes, body, { color: tokens.lime }]}>
-            {win.votes} voix
+          <Text style={[styles.slotVotes, body, { color: win.tied ? tokens.errorText : tokens.lime }]}>
+            {win.tied ? 'Égalité' : `${win.votes} voix`}
           </Text>
         ) : null}
       </Pressable>
@@ -394,10 +397,54 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
               </Pressable>
             </>
           ) : null}
+          {hidden && tie && tieSlot ? (
+            <View style={{ marginTop: 4 }}>
+              <Text style={[styles.adminText, body, { color: tokens.text }]}>
+                Égalité au poste {POSITION_NAMES[tieSlot.label] ?? tieSlot.label} · {tie.votes} voix chacun
+              </Text>
+              <Text style={[styles.note, body, { color: tokens.muted, marginTop: 4 }]}>
+                Choisis qui entre dans l’équipe.
+                {ties.length > 1 ? ' D’autres égalités suivent : elles peuvent changer selon ton choix.' : ''}
+              </Text>
+              <View style={styles.tieRow}>
+                {tie.options.map((pid) => {
+                  const p = playerOf(pid);
+                  return (
+                    <Pressable
+                      key={pid}
+                      onPress={() => tiePick.mutate({ slot: tie.slot, playerId: pid })}
+                      disabled={tiePick.isPending}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Choisir ${p?.display_name ?? 'ce joueur'}`}
+                      style={[styles.tieOption, { borderColor: tokens.line, backgroundColor: tokens.ink }, tiePick.isPending && { opacity: 0.5 }]}
+                    >
+                      {p ? (
+                        <MiniPlayerCard
+                          size="xs"
+                          displayName={p.display_name}
+                          avatarUrl={p.avatar_url}
+                          overall={p.overall}
+                          position={p.preferred_position}
+                        />
+                      ) : null}
+                      <Text numberOfLines={1} style={[styles.slotName, body, { color: tokens.text, fontSize: 12 }]}>
+                        {p?.display_name ?? 'Joueur'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {tiePick.error ? (
+                <Text style={[styles.note, body, { color: tokens.errorText }]}>{toErrorMessage(tiePick.error)}</Text>
+              ) : null}
+            </View>
+          ) : null}
           {hidden ? (
             <>
               <Text style={[styles.note, body, { color: tokens.muted }]}>
-                Toi seul vois l’équipe gagnante. Publie les résultats quand tu as fini de les vérifier.
+                {tie
+                  ? 'Départage les égalités avant de publier les résultats.'
+                  : 'Toi seul vois l’équipe gagnante. Publie les résultats quand tu as fini de les vérifier.'}
               </Text>
               <Pressable
                 onPress={() =>
@@ -408,8 +455,8 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
                     'Publier'
                   )
                 }
-                disabled={publish.isPending}
-                style={[styles.primary, { backgroundColor: tokens.lime, marginTop: 10 }]}
+                disabled={publish.isPending || !!tie}
+                style={[styles.primary, { backgroundColor: tokens.lime, marginTop: 10 }, (publish.isPending || !!tie) && { opacity: 0.5 }]}
                 accessibilityRole="button"
               >
                 <Text style={[styles.primaryText, body, { color: tokens.onLime }]}>
@@ -528,6 +575,8 @@ export function LineupVoteScreen({ award, leagueId, onDeleted }: LineupVoteScree
   );
 }
 
+const POSITION_NAMES: Record<string, string> = { GB: 'gardien', DEF: 'défenseur', MIL: 'milieu', ATT: 'attaquant' };
+
 const styles = StyleSheet.create({
   eyebrow: { fontSize: 11, fontWeight: '600', letterSpacing: 1.8, textTransform: 'uppercase' },
   title: { fontSize: 30, fontStyle: 'italic', fontWeight: '700', lineHeight: 34, marginTop: 6 },
@@ -621,4 +670,6 @@ const styles = StyleSheet.create({
   },
   pickName: { flex: 1, fontSize: 15, fontWeight: '600' },
   pickTag: { fontSize: 12, fontWeight: '700' },
+  tieRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 10 },
+  tieOption: { width: 92, borderWidth: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
 });
