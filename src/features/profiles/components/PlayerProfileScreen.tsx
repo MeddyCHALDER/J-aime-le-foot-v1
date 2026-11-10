@@ -53,7 +53,15 @@ export function PlayerProfileScreen({ playerId, leagueId, onBack }: PlayerProfil
 
   if (isLoading) return <LoadingState message="Chargement du profil…" />;
   if (error) return <ErrorState message={toErrorMessage(error)} onRetry={() => refetch()} />;
-  if (!profile) return null;
+  if (!profile) {
+    // Profil absent ou masqué par Supabase (RLS) : jamais d'écran vide.
+    return (
+      <ErrorState
+        message="Profil introuvable. S'il s'agit d'un joueur de ta ligue, exécute la migration 021 dans Supabase."
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   const save = async () => {
     await updateProfile.mutateAsync({
