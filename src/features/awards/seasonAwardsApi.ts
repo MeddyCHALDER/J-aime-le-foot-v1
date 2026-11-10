@@ -43,7 +43,7 @@ export type SeasonAward = {
   is_open: boolean;
   /** Vote clôturé, résultats visibles par l'admin seul (migration 020). */
   results_hidden?: boolean;
-  /** Équipe type : poste → joueur choisi par l'admin en cas d'égalité (migration 021). */
+  /** Équipe type : poste → joueur choisi par l'admin en cas d'égalité (migration 022). */
   tie_picks?: Record<string, string> | null;
   /** Lignes (GB, DEF, MIL, ATT) qui peuvent recevoir des voix ; vide = tous (migration 016) */
   positions?: string[] | null;
